@@ -19,6 +19,10 @@ class Piece:
     def move(self, position):
         self.position = position
         self.steps += 1
+        if self.color == PieceColor.RED and self.position[1] == 7:
+            self.is_dama = True
+        elif self.color == PieceColor.BLACK and self.position[1] == 0:
+            self.is_dama = True
     
     def printAviableMoves(self, b):
         moves = self.evaluateMovePositions(b)
@@ -51,7 +55,7 @@ class Piece:
                     # can eat piece
                     check_position = (self.position[0] + collision[0]*2, self.position[1] + collision[1]*2)
                     if b.isInsideBounds(check_position) and b.getPieceByPosition(check_position) == None:
-                        move = Move(self, self.position, check_position, "eat", True)
+                        move = Move(self, self.position, check_position, "eat", True, hit)
                         moves.append(move) # free position
                     else:
                         continue
@@ -69,26 +73,30 @@ class Piece:
 
 class Move:
     piece : Piece
+    piece_to_eat : Piece
     position_from : tuple
     position_to : tuple
     does_eat : bool
     message : str
-    def __init__(self, piece, position_from,position_to, message,does_eat = False):
+    def __init__(self, piece, position_from,position_to, message,does_eat = False, piece_to_eat = None):
         self.piece = piece
+        self.piece_to_eat = piece_to_eat
         self.position_from = position_from
         self.position_to = position_to
         self.does_eat = does_eat
         self.message = message
-
     def __str__(self):
         msg = self.message + " " + str(self.position_from) + " -> " + str(self.position_to)
         if self.does_eat:
             msg += " (can eat)"
         return msg
+    
+    def madeBy(self):
+        return self.piece.color
 class Board:
     height : int = 8
     width : int = 8
-    turn_count : int = 1
+    turn_count : int = 0
     moves : list[Move] = []
     hashMapPieces : dict[tuple, Piece] = {}
     def __init__(self, pieces_red : list[Piece],pieces_black : list[Piece]):
@@ -103,13 +111,22 @@ class Board:
         except KeyError:
             return None
     
-    def eatPiece(self, piece, eaten):
+    def makeMove(self, move : Move):
+        if move.does_eat:
+            self.__eatPiece(move.piece, move.piece_to_eat,move.position_to)
+        else:
+            self.__movePiece(move.piece, move.position_to)
+        self.moves.append(move)
+        print(f"Turn count: {self.turn_count}")
+
+    def __eatPiece(self, piece, eaten, final_position):
         self.hashMapPieces[piece.position] = None
-        piece.move(eaten.position)
-        self.hashMapPieces[eaten.position] = piece
+        piece.move(final_position)
+        self.hashMapPieces[eaten.position] = None
+        self.hashMapPieces[final_position] = piece
         self.turn_count += 1
 
-    def movePiece(self, piece, position):
+    def __movePiece(self, piece, position):
         self.hashMapPieces[piece.position] = None
         piece.move(position)
         self.hashMapPieces[position] = piece
