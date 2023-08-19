@@ -1,8 +1,13 @@
 
 class PieceColor:
-    RED = 0
-    BLACK = 1
+    RED = "RED"
+    BLACK = "BLACK"
 
+class GameStatus:
+    RED_WINS = "RED_WINS"
+    BLACK_WINS = "BLACK_WINS"
+    DRAW = "DRAW"
+    IN_PROGRESS = "IN_PROGRESS"
 
 class Piece:
     is_dama : bool
@@ -94,6 +99,7 @@ class Move:
     def madeBy(self):
         return self.piece.color
 class Board:
+    status : GameStatus = GameStatus.IN_PROGRESS
     height : int = 8
     width : int = 8
     turn_count : int = 0
@@ -104,6 +110,7 @@ class Board:
             self.hashMapPieces[piece.position] = piece
         for piece in pieces_black:
             self.hashMapPieces[piece.position] = piece
+        self.__updateStatus()
 
     def getPieceByPosition(self,position) -> Piece | None:
         try:
@@ -113,6 +120,29 @@ class Board:
     
     def whoMoves(self) -> PieceColor:
         return PieceColor.BLACK if self.turn_count % 2 == 0 else PieceColor.RED
+
+    def __updateStatus(self):
+        count_available_moves = 0
+        # count red and black pieces
+        red_pieces = 0
+        black_pieces = 0
+        for piece in self.hashMapPieces.values():
+            if piece is None:
+                continue
+            if piece.color == self.whoMoves():
+                count_available_moves += len(piece.evaluateMovePositions(self))
+            if piece.color == PieceColor.RED:
+                red_pieces += 1
+            else:
+                black_pieces += 1
+        if red_pieces == 0:
+            self.status = GameStatus.BLACK_WINS
+        elif black_pieces == 0:
+            self.status = GameStatus.RED_WINS
+        elif count_available_moves == 0:
+            self.status = GameStatus.DRAW
+        else:
+            self.status = GameStatus.IN_PROGRESS
 
     def makeMove(self, move : Move):
         who_moves = "Red" if self.whoMoves() == PieceColor.RED else "Black"
@@ -126,11 +156,11 @@ class Board:
         does_any_next_move_eat = False
         possible_moves = move.piece.evaluateMovePositions(self)
         count_eat_moves = 0
+        
         for m in possible_moves:
             if m.does_eat:
                 count_eat_moves += 1
                 does_any_next_move_eat = True
-                break
         
         if move.does_eat and does_any_next_move_eat:
             self.turn_count += 0
@@ -138,6 +168,7 @@ class Board:
                 self.makeMove(possible_moves[0])
         else:
             self.turn_count += 1
+        self.__updateStatus()
 
     def __eatPiece(self, piece, eaten, final_position):
         self.hashMapPieces[piece.position] = None

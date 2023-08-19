@@ -26,6 +26,8 @@ ticksLastBlinkSelector = 0
 
 suggestedMoves = None
 
+time_elapsed_ms = 0
+
 def mousePositionToCell(position):
 	return (position[0]//cell_width, position[1]//cell_width)
 
@@ -62,26 +64,48 @@ def clickedAnyAviableMove(position):
 	return None
 
 pygame.init()
-
+font = pygame.font.SysFont('Comic Sans MS', 30)
 # CREATING CANVAS
 canvas = pygame.display.set_mode((width,height))
 
 # TITLE OF CANVAS
 pygame.display.set_caption("Dama 2023")
 
+text_x, text_y = 8*cell_width + (width -8*cell_width)//2, 25
+text = font.render('Testing', True, colorSelectedPiece, bgLogColor)
+ 
 
-image = pygame.image.load("character.jpg")
+textRect = text.get_rect()
+#textRect.x = text_x
+#textRect.y = text_y
+textRect.center = (text_x, text_y)
+
 exit = False
 
 
-p1_red = Piece((0,2),PieceColor.RED,True)
-p2_black = Piece((7,7),PieceColor.BLACK,True)
+p1_red = Piece((1,1),PieceColor.RED,False)
+p2_black = Piece((4,4),PieceColor.BLACK,False)
+"""
+board = Board([p1_red,
+	       	  Piece((2,1),PieceColor.RED,False),
+			  Piece((3,3),PieceColor.RED,False),],
+			  
+			  [p2_black,
+      		   Piece((7,7),PieceColor.BLACK,False),
+	  ])
 
-board = Board([p1_red,Piece((0,0),PieceColor.RED,False)],[p2_black])
+"""
 
-
+board = Board([
+	       	  Piece((5,5),PieceColor.RED,False),
+			  Piece((6,6),PieceColor.RED,False),],
+			  
+			  [
+      		   Piece((7,7),PieceColor.BLACK,False),
+	  ])
 
 while not exit:	
+	time_elapsed_ms += pygame.time.Clock().tick(60)
 	canvas.fill(bgColor)
 	for event in pygame.event.get():
 		if event.type == pygame.QUIT:
@@ -95,17 +119,30 @@ while not exit:
 			if selectedPiece and move!= None:
 				board.makeMove(move)
 				print(f"Turn count: {board.turn_count}")
+				print(f"Game status: {board.status}")
+				time_elapsed_s = time_elapsed_ms//1000
+				time_elapsed_m = time_elapsed_s//60
+				time_elapsed_h = time_elapsed_m//60
+				print(f"Time elapsed: {time_elapsed_h} h {time_elapsed_m} m {time_elapsed_s} s")
 				selectedPiece = None
 				suggestedMoves = None
-				break
-
-			selectedPiece = board.getPieceByPosition(cellPosition)
-			
-			if selectedPiece and selectedPiece.color == board.whoMoves():
-				suggestedMoves = selectedPiece.evaluateMovePositions(board)
 			else:
-				selectedPiece = None
-				suggestedMoves = None
+				selectedPiece = board.getPieceByPosition(cellPosition)
+				if selectedPiece and selectedPiece.color == board.whoMoves():
+					suggestedMoves = selectedPiece.evaluateMovePositions(board)
+				else:
+					selectedPiece = None
+					suggestedMoves = None
+			
+			try:
+				last_move = board.moves[len(board.moves)-1]
+				if last_move.does_eat and last_move.piece.color == board.whoMoves():
+					selectedPiece = last_move.piece
+					suggestedMoves = selectedPiece.evaluateMovePositions(board)
+					# filtra mosse che mangiano
+					suggestedMoves = list(filter(lambda move: move.does_eat, suggestedMoves))
+			except:
+				pass
 			
 	for i in range(board.width):
 		for j in range(board.height):
@@ -118,5 +155,6 @@ while not exit:
 		drawCircleAroundSelectedPiece()
 		drawMovesForSelectedPiece()
 	pygame.draw.rect(canvas,bgLogColor,(height,0,width-height,height))
+	canvas.blit(text, textRect)
 	pygame.display.update()
 
