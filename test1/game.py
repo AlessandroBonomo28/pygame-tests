@@ -78,17 +78,7 @@ p1_red = Piece((0,2),PieceColor.RED,True)
 p2_black = Piece((7,7),PieceColor.BLACK,True)
 
 board = Board([p1_red,Piece((0,0),PieceColor.RED,False)],[p2_black])
-print(board.getPieceByPosition((0,0)))
-print(board.getPieceByPosition((7,7)))
-#board.eatPiece(p1,p2)
-print(board.getPieceByPosition((0,0)))
-print(board.getPieceByPosition((7,7)))
 
-board.printHashmap()
-print("p1 red")
-p1_red.printAviableMoves(board)
-print("p2 black")
-p2_black.printAviableMoves(board)
 
 
 while not exit:	
@@ -103,17 +93,20 @@ while not exit:
 			move = clickedAnyAviableMove(cellPosition)
 			
 			if selectedPiece and move!= None:
-				print(move)
 				board.makeMove(move)
+				print(f"Turn count: {board.turn_count}")
 				selectedPiece = None
 				suggestedMoves = None
 				break
 
 			selectedPiece = board.getPieceByPosition(cellPosition)
-			if selectedPiece:
+			
+			if selectedPiece and selectedPiece.color == board.whoMoves():
 				suggestedMoves = selectedPiece.evaluateMovePositions(board)
 			else:
+				selectedPiece = None
 				suggestedMoves = None
+			
 	for i in range(board.width):
 		for j in range(board.height):
 			if (i+j)%2 == 0:

@@ -56,7 +56,7 @@ class Piece:
                     check_position = (self.position[0] + collision[0]*2, self.position[1] + collision[1]*2)
                     if b.isInsideBounds(check_position) and b.getPieceByPosition(check_position) == None:
                         move = Move(self, self.position, check_position, "eat", True, hit)
-                        moves.append(move) # free position
+                        moves.append(move)
                     else:
                         continue
                 else:
@@ -88,7 +88,7 @@ class Move:
     def __str__(self):
         msg = self.message + " " + str(self.position_from) + " -> " + str(self.position_to)
         if self.does_eat:
-            msg += " (can eat)"
+            msg += " - move eats "
         return msg
     
     def madeBy(self):
@@ -111,26 +111,44 @@ class Board:
         except KeyError:
             return None
     
+    def whoMoves(self) -> PieceColor:
+        return PieceColor.BLACK if self.turn_count % 2 == 0 else PieceColor.RED
+
     def makeMove(self, move : Move):
+        who_moves = "Red" if self.whoMoves() == PieceColor.RED else "Black"
+        print(f"{who_moves} moves {move}")
         if move.does_eat:
             self.__eatPiece(move.piece, move.piece_to_eat,move.position_to)
         else:
             self.__movePiece(move.piece, move.position_to)
         self.moves.append(move)
-        print(f"Turn count: {self.turn_count}")
+
+        does_any_next_move_eat = False
+        possible_moves = move.piece.evaluateMovePositions(self)
+        count_eat_moves = 0
+        for m in possible_moves:
+            if m.does_eat:
+                count_eat_moves += 1
+                does_any_next_move_eat = True
+                break
+        
+        if move.does_eat and does_any_next_move_eat:
+            self.turn_count += 0
+            if count_eat_moves == 1:
+                self.makeMove(possible_moves[0])
+        else:
+            self.turn_count += 1
 
     def __eatPiece(self, piece, eaten, final_position):
         self.hashMapPieces[piece.position] = None
         piece.move(final_position)
         self.hashMapPieces[eaten.position] = None
         self.hashMapPieces[final_position] = piece
-        self.turn_count += 1
 
     def __movePiece(self, piece, position):
         self.hashMapPieces[piece.position] = None
         piece.move(position)
         self.hashMapPieces[position] = piece
-        self.turn_count += 1
 
     def printHashmap(self):
         # stampa in forma di matrice
