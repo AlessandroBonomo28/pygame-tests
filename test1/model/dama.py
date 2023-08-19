@@ -102,16 +102,38 @@ class Board:
     status : GameStatus = GameStatus.IN_PROGRESS
     height : int = 8
     width : int = 8
-    turn_count : int = 0
-    moves : list[Move] = []
-    hashMapPieces : dict[tuple, Piece] = {}
+    turn_count : int
+    moves : list[Move]
+    hashMapPieces : dict[tuple, Piece]
+    red_score : int 
+    black_score : int
+    red_pieces_start : list[Piece]
+    black_pieces_start : list[Piece]
     def __init__(self, pieces_red : list[Piece],pieces_black : list[Piece]):
+        self.black_score = 0
+        self.red_score = 0
+        self.hashMapPieces = {}
+        self.moves = []
+        self.turn_count = 0
         for piece in pieces_red:
             self.hashMapPieces[piece.position] = piece
         for piece in pieces_black:
             self.hashMapPieces[piece.position] = piece
         self.__updateStatus()
+        self.red_pieces_start = pieces_red.copy()
+        self.black_pieces_start = pieces_black.copy()
 
+    def reset(self):
+        black_pieces = []
+        red_pieces = []
+        for i in range(3):
+            for j in range(8):
+                if (i+j)%2 == 0:
+                    red_pieces.append(Piece((j,i),PieceColor.RED,False))
+                    black_pieces.append(Piece((7-j,7-i),PieceColor.BLACK,False))
+        self.__init__(red_pieces,black_pieces)
+
+    
     def getPieceByPosition(self,position) -> Piece | None:
         try:
             return self.hashMapPieces[position]
@@ -175,6 +197,11 @@ class Board:
         piece.move(final_position)
         self.hashMapPieces[eaten.position] = None
         self.hashMapPieces[final_position] = piece
+        score = 1 if eaten.is_dama else 2
+        if piece.color == PieceColor.RED:
+            self.red_score += score
+        else:
+            self.black_score += score
 
     def __movePiece(self, piece, position):
         self.hashMapPieces[piece.position] = None
