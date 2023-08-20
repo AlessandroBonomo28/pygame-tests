@@ -1,14 +1,14 @@
 import random
 
 class PieceColor:
-    RED = "RED"
-    BLACK = "BLACK"
+    RED = "Rosso"
+    BLACK = "Nero"
 
 class GameStatus:
-    RED_WINS = "RED_WINS"
-    BLACK_WINS = "BLACK_WINS"
-    DRAW = "DRAW"
-    IN_PROGRESS = "IN_PROGRESS"
+    RED_WINS = "Rosso vince"
+    BLACK_WINS = "Nero vince"
+    DRAW = "Pareggio"
+    IN_PROGRESS = "In corso"
 
 class Piece:
     is_dama : bool

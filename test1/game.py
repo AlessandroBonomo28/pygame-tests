@@ -61,9 +61,9 @@ textColor = (255,255,255)
 def drawTextGameStatus():
 	text_x, text_y = 8*cell_width + (width -8*cell_width)//2, 35
 	textTurnColor = (255,0,0) if board.whoMoves() == PieceColor.RED else (0,255,0)
-	textTurn = f"Turn {board.turn_count+1}: {board.whoMoves().lower()} moves"
+	textTurn = f"Turno {board.turn_count+1}: il {board.whoMoves()} muove"
 	if board.status != GameStatus.IN_PROGRESS:
-		textTurn = "Game Over !"
+		textTurn = "Fine !"
 		textTurnColor = (255,255,255)
 	text = fontTurn.render(textTurn, True, textTurnColor, (0,0,0))
 	textRect = text.get_rect()
@@ -74,39 +74,41 @@ def drawTextGameStatus():
 	time_elapsed_s = (time_elapsed_ms//1000) 
 	time_elapsed_m = (time_elapsed_s//60)
 	time_elapsed_h = time_elapsed_m//60
-	timer_txt = f"Time elapsed: {time_elapsed_h} h {time_elapsed_m%60} m {time_elapsed_s%60} s"
+	timer_txt = f"Tempo: {time_elapsed_h} h {time_elapsed_m%60} m {time_elapsed_s%60} s"
 
 	text = normalText.render(timer_txt, True, textColor, (0,0,0))
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing)
 	canvas.blit(text, textRect)
 
-	if board.status == GameStatus.IN_PROGRESS or board.status == GameStatus.DRAW:
+	if board.status == GameStatus.IN_PROGRESS:
 		status_text_color = (255,255,255)
+	elif board.status == GameStatus.DRAW:
+		status_text_color = (255,255,0)
 	else:
 		status_text_color = (255,0,0) if board.status == GameStatus.RED_WINS else (0,255,0)
-	text = normalText.render(f"Game status: {board.status.lower()}!", True, status_text_color, (0,0,0))
+	text = normalText.render(f"Stato gioco: {board.status}", True, status_text_color, (0,0,0))
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*2)
 	canvas.blit(text, textRect)
 
-	text = normalText.render(f"Red score: {board.red_score}", True, textColor, (0,0,0))
+	text = normalText.render(f"Punti rosso: {board.red_score}", True, textColor, (0,0,0))
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*3)
 	canvas.blit(text, textRect)
 
-	text = normalText.render(f"Black score: {board.black_score}", True, textColor, (0,0,0))
+	text = normalText.render(f"Punti nero: {board.black_score}", True, textColor, (0,0,0))
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*4)
 	canvas.blit(text, textRect)
 
 	reset_color = (255,255,255) if board.status == GameStatus.IN_PROGRESS else (0,255,0)
-	text = normalText.render(f"Press R to reset", True, reset_color, (0,0,0))
+	text = normalText.render(f"Premi R per riprovare", True, reset_color, (0,0,0))
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*5)
 	canvas.blit(text, textRect)
 
-	text = normalText.render(f"Press M to toggle music", True, textColor, (0,0,0))
+	text = normalText.render(f"Premi M per mutare la musica", True, textColor, (0,0,0))
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*6)
 	canvas.blit(text, textRect)
@@ -145,8 +147,8 @@ pygame.display.set_caption("Dama 2023")
 
 exit = False
 RED_AI_enabled = True
-BLACK_AI_enabled = True
-auto_reset = True
+BLACK_AI_enabled = False
+auto_reset = False
 AI_delay_ms = 500
 
 black_pieces = []

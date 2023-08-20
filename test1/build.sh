@@ -1,0 +1,1 @@
+pyinstaller game.py --add-data "loop.mp3;."
