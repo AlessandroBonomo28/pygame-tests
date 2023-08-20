@@ -74,7 +74,7 @@ class Piece:
     
     def __str__(self):
         col = "Red" if self.color == PieceColor.RED else "Black"
-        return col+" "+str(self.steps) + " " + str(self.position)
+        return col+" "+str(self.steps) + " " + str(self.position) + " Dama: " + str(self.is_dama)
 
 
 class Move:
@@ -100,6 +100,7 @@ class Move:
     def madeBy(self):
         return self.piece.color
 class Board:
+    __score_multiplier = 1
     status : GameStatus = GameStatus.IN_PROGRESS
     height : int = 8
     width : int = 8
@@ -134,7 +135,9 @@ class Board:
                     black_pieces.append(Piece((7-j,7-i),PieceColor.BLACK,False))
         self.__init__(red_pieces,black_pieces)
 
-
+    def get_multiplier(self):
+        return self.__score_multiplier
+    
     def getPieceByPosition(self,position) -> Piece | None:
         try:
             return self.hashMapPieces[position]
@@ -168,6 +171,7 @@ class Board:
             self.status = GameStatus.IN_PROGRESS
 
     def makeMove(self, move : Move):
+        was_dama = move.piece.is_dama
         who_moves = "Red" if self.whoMoves() == PieceColor.RED else "Black"
         print(f"{who_moves} moves {move}")
         if move.does_eat:
@@ -175,6 +179,11 @@ class Board:
         else:
             self.__movePiece(move.piece, move.position_to)
         self.moves.append(move)
+
+        if not was_dama and move.piece.is_dama and move.piece.color == PieceColor.RED:
+            self.red_score += 1 * self.__score_multiplier
+        elif not was_dama and move.piece.is_dama and move.piece.color == PieceColor.BLACK:
+            self.black_score += 1 * self.__score_multiplier
 
         possible_moves = move.piece.evaluateMovePositions(self)
         # filter only eat moves
@@ -193,11 +202,12 @@ class Board:
         piece.move(final_position)
         self.hashMapPieces[eaten.position] = None
         self.hashMapPieces[final_position] = piece
-        score = 1 if eaten.is_dama else 2
+        score = 2 if eaten.is_dama else 1
         if piece.color == PieceColor.RED:
-            self.red_score += score
+            self.red_score += score * self.__score_multiplier
         else:
-            self.black_score += score
+            self.black_score += score * self.__score_multiplier
+            
 
     def __movePiece(self, piece, position):
         self.hashMapPieces[piece.position] = None
@@ -225,9 +235,9 @@ class Board:
         return position[0] >= 0 and position[0] < self.width and position[1] >= 0 and position[1] < self.height
     
     def makeMoveRedAI(self):
-        self.__makeMoveAI(PieceColor.RED)
+        return self.__makeMoveAI(PieceColor.RED)
     def makeMoveBlackAI(self):
-        self.__makeMoveAI(PieceColor.BLACK)
+        return self.__makeMoveAI(PieceColor.BLACK)
     
     def __makeMoveAI(self, AI_color : PieceColor):
         moves = []
@@ -238,13 +248,15 @@ class Board:
                 piece_moves = piece.evaluateMovePositions(self)
                 moves.extend(piece_moves)
         if len(moves) == 0:
-            return
+            return None, None
         # filter eat moves
         eat_moves = list(filter(lambda m: m.does_eat, moves))
         if len(eat_moves) > 0:
             move = random.choice(eat_moves)
         else:
             move = random.choice(moves)
+        was_dama = move.piece.is_dama
         self.makeMove(move)
+        return move, was_dama
 
         

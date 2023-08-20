@@ -1,6 +1,7 @@
-import pygame
+import pygame,os,json
 
 from model.dama import *
+from model.player import *
 width = 800
 height = 500
 
@@ -10,9 +11,9 @@ start_y_board = 0
 text_spacing = cell_width//2
 
 bgColor = (255,255,255)
-evenCellColor = (128,128,128)
+evenCellColor = (128,128,128)#(205,133,63)
 oddCellColor = (255,255,255)
-bgLogColor = (0,0,0,128)
+bgLogColor = (0,0,0)
 redPiecesColor = (255,0,0)
 blackPiecesColor = (0,0,0)
 colorSelectedPiece = (0,255,0)
@@ -92,25 +93,69 @@ def drawTextGameStatus():
 	textRect.center = (text_x, text_y + text_spacing*2)
 	canvas.blit(text, textRect)
 
-	text = normalText.render(f"Punti rosso: {board.red_score}", True, textColor, (0,0,0))
+	min_score = min(board.red_score, board.black_score)
+	max_score = max(board.red_score, board.black_score)
+	
+	score_txt_color = (220,220,0)
+	score_txt = f"{max_score} - {min_score}"
+	if board.red_score > board.black_score:
+		score_txt += " per il Rosso"
+	elif board.red_score < board.black_score:
+		score_txt += " per il Nero"
+	else:
+		score_txt += " pari"	
+	text = normalText.render(score_txt, True, score_txt_color, (0,0,0))
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*3)
-	canvas.blit(text, textRect)
-
-	text = normalText.render(f"Punti nero: {board.black_score}", True, textColor, (0,0,0))
-	textRect = text.get_rect()
-	textRect.center = (text_x, text_y + text_spacing*4)
 	canvas.blit(text, textRect)
 
 	reset_color = (255,255,255) if board.status == GameStatus.IN_PROGRESS else (0,255,0)
 	text = normalText.render(f"Premi R per riprovare", True, reset_color, (0,0,0))
 	textRect = text.get_rect()
-	textRect.center = (text_x, text_y + text_spacing*5)
+	textRect.center = (text_x, text_y + text_spacing*4)
 	canvas.blit(text, textRect)
 
 	text = normalText.render(f"Premi M per mutare la musica", True, textColor, (0,0,0))
 	textRect = text.get_rect()
-	textRect.center = (text_x, text_y + text_spacing*6)
+	textRect.center = (text_x, text_y + text_spacing*5)
+	canvas.blit(text, textRect)
+
+def drawExpBar(x,y):
+	w = (width - cell_width*8) - 40
+	pygame.draw.rect(canvas,(0,0,0),(x,y,w,cell_width//3))
+	pygame.draw.rect(canvas,(0,0,220),(x+cell_width//24,y+cell_width//24,(w-cell_width//24)*(player.experience/player.exp_limit_current_level()),cell_width//4))
+
+def drawPlayerStats():
+	text_x = 8*cell_width + (width -8*cell_width)//2
+	text_y = height//2 + cell_width//2 +10
+	bgColorRect = (64,64,64)
+	# draw background rect
+	pygame.draw.rect(canvas,bgColorRect,(8*cell_width +10, text_y - 30, width-(8*cell_width+20), height-text_y))
+	colorPlayerTxt = (255,255,255)
+	text = normalText.render(f"{player.name} - Livello {player.level}", True,colorPlayerTxt ,bgColorRect)
+	textRect = text.get_rect()
+	textRect.center = (text_x, text_y)
+	canvas.blit(text, textRect)
+	
+	drawExpBar(8*cell_width + 20, text_y + text_spacing)
+	txt_exp = f"Esperienza: {int(player.experience)}/{int(player.exp_limit_current_level())}"
+	txt_exp_color = (255,255,255)
+	if board.status == GameStatus.BLACK_WINS:
+		txt_exp += f"  +{board.black_score*board.get_multiplier()} guadagnati!"
+		txt_exp_color = (0,255,0)
+	text = playerText.render(txt_exp, True, txt_exp_color,bgColorRect)
+	textRect = text.get_rect()
+	textRect.center = (text_x, text_y+ text_spacing*2)
+	canvas.blit(text, textRect)
+
+	text = playerText.render(f"Percentuale vittorie: {int(player.win_percent())}%", True, colorPlayerTxt,bgColorRect)
+	textRect = text.get_rect()
+	textRect.center = (text_x, text_y+ text_spacing*2.8)
+	canvas.blit(text, textRect)
+
+	text = playerText.render(f"{player.wins} Vinte, {player.losses} Perse, {player.draws} Pareggiate", True, colorPlayerTxt,bgColorRect)
+	textRect = text.get_rect()
+	textRect.center = (text_x, text_y+ text_spacing*3.5)
 	canvas.blit(text, textRect)
 
 def drawPreviousMove():
@@ -131,11 +176,20 @@ pygame.init()
 
 audio_enabled = True
 pygame.mixer.init()
+
+move_sound = pygame.mixer.Sound("sounds/move.mp3")
+win_sound = pygame.mixer.Sound("sounds/win.mp3")
+lose_sound = pygame.mixer.Sound("sounds/lose.mp3")
+draw_sound = pygame.mixer.Sound("sounds/draw.mp3")
+dama_sound = pygame.mixer.Sound("sounds/dama.mp3")
+enemy_dama_sound = pygame.mixer.Sound("sounds/enemy_dama.mp3")
+
 pygame.mixer.music.load('loop.mp3')
 pygame.mixer.music.play(-1)
 
 fontTurn = pygame.font.SysFont('Comic Sans MS', 25)
 normalText = pygame.font.SysFont('Comic Sans MS', 20)
+playerText = pygame.font.SysFont('Comic Sans MS', 16)
 # CREATING CANVAS
 # resizable window
 
@@ -145,11 +199,22 @@ canvas = pygame.display.set_mode((width,height),pygame.RESIZABLE)
 # TITLE OF CANVAS
 pygame.display.set_caption("Dama 2023")
 
+try:
+	with open("game_settings.json") as f:
+		game_settings = json.load(f)
+		AI_delay_ms = game_settings["AI_delay_ms"]
+except:
+	AI_delay_ms = 500
+
+
 exit = False
 RED_AI_enabled = True
 BLACK_AI_enabled = False
 auto_reset = False
-AI_delay_ms = 500
+
+player = Player("Pippo")
+
+assign_exp = False
 
 black_pieces = []
 red_pieces = []
@@ -173,15 +238,29 @@ board = Board([
 while not exit:	
 	if board.status == GameStatus.IN_PROGRESS:
 		time_elapsed_ms += pygame.time.Clock().tick(60)
+	elif assign_exp:
+		assign_exp = False
+		player.add_exp(board.black_score)
 	canvas.fill(bgColor)
 
 	if board.status == GameStatus.IN_PROGRESS:
 		if board.whoMoves() == PieceColor.RED and RED_AI_enabled:
 			# AI RED
-			board.makeMoveRedAI()
+			move, was_dama = board.makeMoveRedAI()
 			selectedPiece = None
 			suggestedMoves = None
 			pygame.time.delay(AI_delay_ms)
+			if board.status != GameStatus.IN_PROGRESS:
+					if board.status == GameStatus.RED_WINS:
+						player.add_loss()
+						pygame.mixer.Sound.play(lose_sound)
+					elif board.status == GameStatus.DRAW:
+						player.add_draw()
+						pygame.mixer.Sound.play(draw_sound)
+			if move:
+				if not was_dama and move.piece.is_dama:
+					pygame.mixer.Sound.play(enemy_dama_sound)
+			pygame.mixer.Sound.play(move_sound)
 			time_elapsed_ms += AI_delay_ms
 			
 		elif board.whoMoves() == PieceColor.BLACK and BLACK_AI_enabled:
@@ -190,6 +269,7 @@ while not exit:
 			selectedPiece = None
 			suggestedMoves = None
 			pygame.time.delay(AI_delay_ms)
+			pygame.mixer.Sound.play(move_sound)
 			time_elapsed_ms += AI_delay_ms
 	elif auto_reset:
 		pygame.time.delay(5000)
@@ -209,6 +289,7 @@ while not exit:
 			text_spacing = cell_width*0.7
 			fontTurn = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
 			normalText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.35))
+			playerText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.25))
 			piecesRadius = cell_width//2 -10
 			selectedPieceRadius = piecesRadius +2.5
 			canvas = pygame.display.set_mode((width,height),pygame.RESIZABLE)
@@ -242,7 +323,19 @@ while not exit:
 			move = clickedAnyAviableMove(cellPosition)
 			
 			if selectedPiece and move != None:
+				was_dama = move.piece.is_dama
 				board.makeMove(move)
+				pygame.mixer.Sound.play(move_sound)
+				if not was_dama and move.piece.is_dama:
+					pygame.mixer.Sound.play(dama_sound)	
+				if board.status != GameStatus.IN_PROGRESS:
+					if board.status == GameStatus.BLACK_WINS:
+						player.add_win()
+						pygame.mixer.Sound.play(win_sound)
+					elif board.status == GameStatus.DRAW:
+						player.add_draw()
+						pygame.mixer.Sound.play(draw_sound)
+					assign_exp = True
 				selectedPiece = None
 				suggestedMoves = None
 			else:
@@ -277,6 +370,7 @@ while not exit:
 	pygame.draw.rect(canvas,bgLogColor,(height,0,width-height,height))
 
 	drawTextGameStatus()
-
+	if RED_AI_enabled and not BLACK_AI_enabled:
+		drawPlayerStats()
 	pygame.display.update()
 
