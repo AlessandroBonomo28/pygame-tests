@@ -1,3 +1,5 @@
+import random
+import pygame
 
 class PieceColor:
     RED = "RED"
@@ -133,7 +135,7 @@ class Board:
                     black_pieces.append(Piece((7-j,7-i),PieceColor.BLACK,False))
         self.__init__(red_pieces,black_pieces)
 
-    
+
     def getPieceByPosition(self,position) -> Piece | None:
         try:
             return self.hashMapPieces[position]
@@ -175,19 +177,14 @@ class Board:
             self.__movePiece(move.piece, move.position_to)
         self.moves.append(move)
 
-        does_any_next_move_eat = False
         possible_moves = move.piece.evaluateMovePositions(self)
-        count_eat_moves = 0
+        # filter only eat moves
+        possible_eat_moves = list(filter(lambda m: m.does_eat, possible_moves)) 
         
-        for m in possible_moves:
-            if m.does_eat:
-                count_eat_moves += 1
-                does_any_next_move_eat = True
-        
-        if move.does_eat and does_any_next_move_eat:
+        if move.does_eat and len(possible_eat_moves) > 0:
             self.turn_count += 0
-            if count_eat_moves == 1:
-                self.makeMove(possible_moves[0])
+            #if len(possible_eat_moves) == 1:
+            #    self.makeMove(possible_eat_moves[0])
         else:
             self.turn_count += 1
         self.__updateStatus()
@@ -228,4 +225,27 @@ class Board:
     def isInsideBounds(self, position):
         return position[0] >= 0 and position[0] < self.width and position[1] >= 0 and position[1] < self.height
     
+    def makeMoveRedAI(self):
+        self.__makeMoveAI(PieceColor.RED)
+    def makeMoveBlackAI(self):
+        self.__makeMoveAI(PieceColor.BLACK)
     
+    def __makeMoveAI(self, AI_color : PieceColor):
+        moves = []
+        for piece in self.hashMapPieces.values():
+            if piece is None:
+                continue
+            if piece.color == AI_color:
+                piece_moves = piece.evaluateMovePositions(self)
+                moves.extend(piece_moves)
+        if len(moves) == 0:
+            return
+        # filter eat moves
+        eat_moves = list(filter(lambda m: m.does_eat, moves))
+        if len(eat_moves) > 0:
+            move = random.choice(eat_moves)
+        else:
+            move = random.choice(moves)
+        self.makeMove(move)
+
+        

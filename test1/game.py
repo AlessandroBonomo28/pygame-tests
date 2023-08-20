@@ -69,10 +69,10 @@ def drawTextGameStatus():
 	canvas.blit(text, textRect)
 
 	
-	time_elapsed_s = (time_elapsed_ms//1000) % 60
-	time_elapsed_m = (time_elapsed_s//60) % 60
+	time_elapsed_s = (time_elapsed_ms//1000) 
+	time_elapsed_m = (time_elapsed_s//60)
 	time_elapsed_h = time_elapsed_m//60
-	timer_txt = f"Time elapsed: {time_elapsed_h} h {time_elapsed_m} m {time_elapsed_s} s"
+	timer_txt = f"Time elapsed: {time_elapsed_h} h {time_elapsed_m%60} m {time_elapsed_s%60} s"
 
 	text = normalText.render(timer_txt, True, textColor, (0,0,0))
 	textRect = text.get_rect()
@@ -104,6 +104,12 @@ def drawTextGameStatus():
 	textRect.center = (text_x, text_y + 150)
 	canvas.blit(text, textRect)
 
+def drawPreviousMove():
+	previous_move = board.moves[-1] if len(board.moves) > 0 else None
+	if previous_move:
+		# draw arrow
+		pygame.draw.line(canvas,(0,0,255),((previous_move.position_from[0]+0.5)*cell_width,(previous_move.position_from[1]+0.5)*cell_width),((previous_move.position_to[0]+0.5)*cell_width,(previous_move.position_to[1]+0.5)*cell_width),5)
+	
 def clickedAnyAviableMove(position):
 	global suggestedMoves
 	if suggestedMoves:
@@ -124,9 +130,11 @@ canvas = pygame.display.set_mode((width,height),pygame.RESIZABLE)
 # TITLE OF CANVAS
 pygame.display.set_caption("Dama 2023")
 
-
-
 exit = False
+RED_AI_enabled = True
+BLACK_AI_enabled = True
+auto_reset = True
+AI_delay_ms = 500
 
 black_pieces = []
 red_pieces = []
@@ -151,6 +159,30 @@ while not exit:
 	if board.status == GameStatus.IN_PROGRESS:
 		time_elapsed_ms += pygame.time.Clock().tick(60)
 	canvas.fill(bgColor)
+
+	if board.status == GameStatus.IN_PROGRESS:
+		if board.whoMoves() == PieceColor.RED and RED_AI_enabled:
+			# AI RED
+			board.makeMoveRedAI()
+			selectedPiece = None
+			suggestedMoves = None
+			pygame.time.delay(AI_delay_ms)
+			time_elapsed_ms += AI_delay_ms
+			
+		elif board.whoMoves() == PieceColor.BLACK and BLACK_AI_enabled:
+			# AI BLACK
+			board.makeMoveBlackAI()
+			selectedPiece = None
+			suggestedMoves = None
+			pygame.time.delay(AI_delay_ms)
+			time_elapsed_ms += AI_delay_ms
+	elif auto_reset:
+		pygame.time.delay(5000)
+		board.reset()
+		time_elapsed_ms = 0
+		selectedPiece = None
+		suggestedMoves = None
+	
 	for event in pygame.event.get():
 		# if resized window
 		if event.type == pygame.VIDEORESIZE:
@@ -173,7 +205,7 @@ while not exit:
 				selectedPiece = None
 				suggestedMoves = None
 				break
-		if event.type == pygame.MOUSEBUTTONUP:
+		if event.type == pygame.MOUSEBUTTONUP and board.whoMoves() == PieceColor.BLACK and not BLACK_AI_enabled:
 			pos = pygame.mouse.get_pos()
 
 			if board.status != GameStatus.IN_PROGRESS:
@@ -183,14 +215,8 @@ while not exit:
 			cellPosition = mousePositionToCell(pos)
 			move = clickedAnyAviableMove(cellPosition)
 			
-			if selectedPiece and move!= None:
+			if selectedPiece and move != None:
 				board.makeMove(move)
-				print(f"Turn count: {board.turn_count}")
-				print(f"Game status: {board.status}")
-				time_elapsed_s = (time_elapsed_ms//1000) % 60
-				time_elapsed_m = (time_elapsed_s//60) % 60
-				time_elapsed_h = time_elapsed_m//60
-				print(f"Time elapsed: {time_elapsed_h} h {time_elapsed_m} m {time_elapsed_s} s")
 				selectedPiece = None
 				suggestedMoves = None
 			else:
@@ -201,15 +227,15 @@ while not exit:
 					selectedPiece = None
 					suggestedMoves = None
 			
-			try:
-				last_move = board.moves[len(board.moves)-1]
-				if last_move.does_eat and last_move.piece.color == board.whoMoves():
-					selectedPiece = last_move.piece
-					suggestedMoves = selectedPiece.evaluateMovePositions(board)
-					# filtra mosse che mangiano
-					suggestedMoves = list(filter(lambda move: move.does_eat, suggestedMoves))
-			except:
-				pass
+	try:
+		last_move = board.moves[len(board.moves)-1]
+		if last_move.does_eat and last_move.piece.color == board.whoMoves():
+			selectedPiece = last_move.piece
+			suggestedMoves = selectedPiece.evaluateMovePositions(board)
+			# filtra mosse che mangiano
+			suggestedMoves = list(filter(lambda move: move.does_eat, suggestedMoves))
+	except:
+		pass
 			
 	for i in range(board.width):
 		for j in range(board.height):
@@ -218,6 +244,7 @@ while not exit:
 			else:
 				pygame.draw.rect(canvas,evenCellColor,((i+start_x_board)*cell_width,j*cell_width,cell_width,cell_width))
 	drawPieces(board)
+	drawPreviousMove()
 	if selectedPiece:
 		drawCircleAroundSelectedPiece()
 		drawMovesForSelectedPiece()
