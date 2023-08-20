@@ -7,6 +7,7 @@ height = 500
 cell_width = height/8
 start_x_board = 0
 start_y_board = 0
+text_spacing = cell_width//2
 
 bgColor = (255,255,255)
 evenCellColor = (128,128,128)
@@ -20,10 +21,11 @@ suggestedMoveColor = (255,128,128)
 piecesRadius = cell_width//2 -10
 selectedPieceRadius = piecesRadius +2.5
 selectedPieceStroke = 5
-selectedPiece = None
+
 msBlinkSelector = 500
 ticksLastBlinkSelector = 0
 
+selectedPiece = None
 suggestedMoves = None
 
 time_elapsed_ms = 0
@@ -57,7 +59,7 @@ def drawMovesForSelectedPiece():
 
 textColor = (255,255,255)
 def drawTextGameStatus():
-	text_x, text_y = 8*cell_width + (width -8*cell_width)//2, 25
+	text_x, text_y = 8*cell_width + (width -8*cell_width)//2, 35
 	textTurnColor = (255,0,0) if board.whoMoves() == PieceColor.RED else (0,255,0)
 	textTurn = f"Turn {board.turn_count+1}: {board.whoMoves().lower()} moves"
 	if board.status != GameStatus.IN_PROGRESS:
@@ -76,7 +78,7 @@ def drawTextGameStatus():
 
 	text = normalText.render(timer_txt, True, textColor, (0,0,0))
 	textRect = text.get_rect()
-	textRect.center = (text_x, text_y + 30)
+	textRect.center = (text_x, text_y + text_spacing)
 	canvas.blit(text, textRect)
 
 	if board.status == GameStatus.IN_PROGRESS or board.status == GameStatus.DRAW:
@@ -85,23 +87,28 @@ def drawTextGameStatus():
 		status_text_color = (255,0,0) if board.status == GameStatus.RED_WINS else (0,255,0)
 	text = normalText.render(f"Game status: {board.status.lower()}!", True, status_text_color, (0,0,0))
 	textRect = text.get_rect()
-	textRect.center = (text_x, text_y + 60)
+	textRect.center = (text_x, text_y + text_spacing*2)
 	canvas.blit(text, textRect)
 
 	text = normalText.render(f"Red score: {board.red_score}", True, textColor, (0,0,0))
 	textRect = text.get_rect()
-	textRect.center = (text_x, text_y + 90)
+	textRect.center = (text_x, text_y + text_spacing*3)
 	canvas.blit(text, textRect)
 
 	text = normalText.render(f"Black score: {board.black_score}", True, textColor, (0,0,0))
 	textRect = text.get_rect()
-	textRect.center = (text_x, text_y + 120)
+	textRect.center = (text_x, text_y + text_spacing*4)
 	canvas.blit(text, textRect)
 
 	reset_color = (255,255,255) if board.status == GameStatus.IN_PROGRESS else (0,255,0)
 	text = normalText.render(f"Press R to reset", True, reset_color, (0,0,0))
 	textRect = text.get_rect()
-	textRect.center = (text_x, text_y + 150)
+	textRect.center = (text_x, text_y + text_spacing*5)
+	canvas.blit(text, textRect)
+
+	text = normalText.render(f"Press M to toggle music", True, textColor, (0,0,0))
+	textRect = text.get_rect()
+	textRect.center = (text_x, text_y + text_spacing*6)
 	canvas.blit(text, textRect)
 
 def drawPreviousMove():
@@ -119,6 +126,12 @@ def clickedAnyAviableMove(position):
 	return None
 
 pygame.init()
+
+audio_enabled = True
+pygame.mixer.init()
+pygame.mixer.music.load('loop.mp3')
+pygame.mixer.music.play(-1)
+
 fontTurn = pygame.font.SysFont('Comic Sans MS', 25)
 normalText = pygame.font.SysFont('Comic Sans MS', 20)
 # CREATING CANVAS
@@ -191,6 +204,11 @@ while not exit:
 			cell_width = height/8
 			start_x_board = 0
 			start_y_board = 0
+			text_spacing = cell_width*0.7
+			fontTurn = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
+			normalText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.35))
+			piecesRadius = cell_width//2 -10
+			selectedPieceRadius = piecesRadius +2.5
 			canvas = pygame.display.set_mode((width,height),pygame.RESIZABLE)
 		
 		if event.type == pygame.QUIT:
@@ -205,6 +223,12 @@ while not exit:
 				selectedPiece = None
 				suggestedMoves = None
 				break
+			if event.key == pygame.K_m:
+				audio_enabled = not audio_enabled
+				if audio_enabled:
+					pygame.mixer.music.unpause()
+				else:
+					pygame.mixer.music.pause()
 		if event.type == pygame.MOUSEBUTTONUP and board.whoMoves() == PieceColor.BLACK and not BLACK_AI_enabled:
 			pos = pygame.mouse.get_pos()
 

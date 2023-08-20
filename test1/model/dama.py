@@ -1,5 +1,4 @@
 import random
-import pygame
 
 class PieceColor:
     RED = "RED"
