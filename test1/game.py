@@ -34,10 +34,18 @@ time_elapsed_ms = 0
 def mousePositionToCell(position):
 	return (position[0]//cell_width, position[1]//cell_width)
 
-
+def drawSelectedPieceOverMouse():
+	global selectedPiece
+	if selectedPiece != None:
+		if selectedPiece.color == PieceColor.RED:
+			pygame.draw.circle(canvas,redPiecesColor,pygame.mouse.get_pos(), piecesRadius)
+		else:
+			pygame.draw.circle(canvas,blackPiecesColor,pygame.mouse.get_pos(), piecesRadius)
+		if selectedPiece.is_dama:
+			pygame.draw.circle(canvas,(255,255,0),pygame.mouse.get_pos(), piecesRadius//2)
 def drawPieces(board : Board): # draw red circle or black circle
 	for piece in board.hashMapPieces.values():
-		if piece is None:
+		if piece is None or piece == selectedPiece:
 			continue
 		if piece.color == PieceColor.RED:
 			pygame.draw.circle(canvas,redPiecesColor,((piece.position[0]+0.5)*cell_width,(piece.position[1]+0.5)*cell_width), piecesRadius)
@@ -312,7 +320,7 @@ while not exit:
 					pygame.mixer.music.unpause()
 				else:
 					pygame.mixer.music.pause()
-		if event.type == pygame.MOUSEBUTTONUP and board.whoMoves() == PieceColor.BLACK and not BLACK_AI_enabled:
+		if (event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEBUTTONUP) and board.whoMoves() == PieceColor.BLACK and not BLACK_AI_enabled:
 			pos = pygame.mouse.get_pos()
 
 			if board.status != GameStatus.IN_PROGRESS:
@@ -322,6 +330,16 @@ while not exit:
 			cellPosition = mousePositionToCell(pos)
 			move = clickedAnyAviableMove(cellPosition)
 			
+			if event.type == pygame.MOUSEBUTTONUP and suggestedMoves:
+				selected_valid_position = False
+				for m in suggestedMoves:
+					if cellPosition == m.position_to:
+						selected_valid_position = True
+						break
+				if not selected_valid_position:
+					selectedPiece = None
+					suggestedMoves = None
+
 			if selectedPiece and move != None:
 				was_dama = move.piece.is_dama
 				board.makeMove(move)
@@ -338,7 +356,7 @@ while not exit:
 					assign_exp = True
 				selectedPiece = None
 				suggestedMoves = None
-			else:
+			elif event.type == pygame.MOUSEBUTTONDOWN:
 				selectedPiece = board.getPieceByPosition(cellPosition)
 				if selectedPiece and selectedPiece.color == board.whoMoves():
 					suggestedMoves = selectedPiece.evaluateMovePositions(board)
@@ -365,6 +383,7 @@ while not exit:
 	drawPieces(board)
 	drawPreviousMove()
 	if selectedPiece:
+		drawSelectedPieceOverMouse()
 		drawCircleAroundSelectedPiece()
 		drawMovesForSelectedPiece()
 	pygame.draw.rect(canvas,bgLogColor,(height,0,width-height,height))
