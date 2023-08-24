@@ -5,10 +5,10 @@ import os
 os.system("pyinstaller game.py")
 
 # copy game_settings.json to dist folder
-os.system("copy game_settings.json dist")
+os.system("copy game_settings.json dist\game")
 
 # copy loop.mp3 to dist folder
-os.system("copy loop.mp3 dist")
+os.system("copy loop.mp3 dist\game")
 
 # copy sound directory with all files to dist folder
-os.system("xcopy sound dist\sound /E /I /Y")
+os.system("xcopy sounds dist\game\sounds /E /I /Y")

@@ -249,7 +249,7 @@ except:
 
 exit = False
 RED_AI_enabled = True
-BLACK_AI_enabled = True
+BLACK_AI_enabled = False
 auto_reset = False
 
 player = Player("Pippo")
