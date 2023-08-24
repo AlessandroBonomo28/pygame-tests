@@ -7,7 +7,7 @@ class PieceColor:
 class GameStatus:
     RED_WINS = "Rosso vince"
     BLACK_WINS = "Nero vince"
-    DRAW = "Pareggio"
+    DRAW = "Patta"
     IN_PROGRESS = "In corso"
 
 class Piece:
@@ -97,8 +97,10 @@ class Move:
             msg += " - move eats "
         return msg
     
-    def madeBy(self):
+    def made_by(self):
         return self.piece.color
+    
+
 class Board:
     __score_multiplier = 1
     status : GameStatus = GameStatus.IN_PROGRESS
