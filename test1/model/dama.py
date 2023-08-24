@@ -30,14 +30,13 @@ class Piece:
         elif self.color == PieceColor.BLACK and self.position[1] == 0:
             self.is_dama = True
     
-    def printAviableMoves(self, b):
+    def printAvailableMoves(self, b):
         moves = self.evaluateMovePositions(b)
         for move in moves:
             print(move)
 
-    def evaluateMovePositions(self, b ) -> list[any]:
+    def evaluateMovePositions(self, b) -> list[any]:
         moves = []
-
         top_left = (-1,-1)
         top_right = (+1, -1)
         bottom_left = (-1, +1)
@@ -72,6 +71,26 @@ class Piece:
 
         return moves
     
+    def canBeEaten(self, b):
+        top_left = (-1,-1)
+        top_right = (+1, -1)
+        bottom_left = (-1, +1)
+        bottom_right = (+1, +1)
+        neighbours_positions = [top_left, top_right, bottom_left, bottom_right]
+        neighbours = []
+        for pos in neighbours_positions:
+            piece = b.getPieceByPosition((self.position[0] + pos[0], self.position[1] + pos[1]))
+            if piece != None and piece.color != self.color:
+                neighbours.append(piece)
+        can_be_eaten = False
+        for neighbour in neighbours:
+            moves = neighbour.evaluateMovePositions(b)
+            for move in moves:
+                if move.does_eat and move.piece_to_eat == self:
+                    can_be_eaten = True
+                    break
+        return can_be_eaten
+
     def __str__(self):
         col = "Red" if self.color == PieceColor.RED else "Black"
         return col+" "+str(self.steps) + " " + str(self.position) + " Dama: " + str(self.is_dama)
@@ -111,22 +130,27 @@ class Board:
     hashMapPieces : dict[tuple, Piece]
     red_score : int 
     black_score : int
-    red_pieces_start : list[Piece]
-    black_pieces_start : list[Piece]
-    def __init__(self, pieces_red : list[Piece],pieces_black : list[Piece]):
+    def __init__(self, pieces_red : list[Piece] = [],pieces_black : list[Piece] = [],hashMap : dict[tuple, Piece]= None):
         self.black_score = 0
         self.red_score = 0
         self.hashMapPieces = {}
         self.moves = []
         self.turn_count = 0
-        for piece in pieces_red:
-            self.hashMapPieces[piece.position] = piece
-        for piece in pieces_black:
-            self.hashMapPieces[piece.position] = piece
+        if hashMap is None:
+            for piece in pieces_red:
+                self.hashMapPieces[piece.position] = piece
+            for piece in pieces_black:
+                self.hashMapPieces[piece.position] = piece
+        else:
+            self.hashMapPieces = hashMap
+            
         self.__updateStatus()
-        self.red_pieces_start = pieces_red.copy()
-        self.black_pieces_start = pieces_black.copy()
 
+    def get_red_pieces(self):
+        return list(filter(lambda p: p is not None and p.color == PieceColor.RED, self.hashMapPieces.values()))    
+    def get_black_pieces(self):
+        return list(filter(lambda p: p is not None and p.color == PieceColor.BLACK, self.hashMapPieces.values()))
+    
     def reset(self):
         black_pieces = []
         red_pieces = []
@@ -256,9 +280,90 @@ class Board:
         if len(eat_moves) > 0:
             move = random.choice(eat_moves)
         else:
-            move = random.choice(moves)
+            pieces_in_danger = self.get_pieces_in_danger(AI_color)
+            defensive_moves = []
+            for piece in pieces_in_danger:
+                defensive_moves.extend(piece.evaluateMovePositions(self))
+            
+            if len(defensive_moves) > 0:
+                defensive_moves = self.__filter_safe_moves(defensive_moves)
+                move = random.choice(defensive_moves)
+            else:
+                moves = self.__filter_safe_moves(moves)
+                moves = self.__filter__pursuit_moves(moves)
+                move = random.choice(moves)
         was_dama = move.piece.is_dama
         self.makeMove(move)
         return move, was_dama
 
+    def __undoEatPiece(self, piece, eaten, final_position):
+        self.hashMapPieces[piece.position] = None
+        piece.move(final_position)
+        self.hashMapPieces[eaten.position] = eaten
+        self.hashMapPieces[final_position] = piece
+        score = 2 if eaten.is_dama else 1
+        if piece.color == PieceColor.RED:
+            self.red_score -= score * self.__score_multiplier
+        else:
+            self.black_score -= score * self.__score_multiplier
+    
+    def __undoMovePiece(self, piece, position):
+        self.hashMapPieces[piece.position] = None
+        piece.move(position)
+        self.hashMapPieces[position] = piece
+
+    # TODO fix: se un pezzo diventa dama rimane dama
+    def __undoMove(self): 
+        if len(self.moves) == 0:
+            return
+        move = self.moves.pop()
+        if move.does_eat:
+            self.__undoEatPiece(move.piece, move.piece_to_eat, move.position_from)
+        else:
+            self.__undoMovePiece(move.piece, move.position_from)
+        self.turn_count -= 1
+        self.__updateStatus()
+
+    def __filter_safe_moves(self, moves) -> list[Move]:
+        good_moves = []
         
+        for move in moves:
+            was_dama = move.piece.is_dama # TODO puo' essere fatto nella funzione undo
+            self.makeMove(move)
+            if not move.piece.canBeEaten(self):
+                good_moves.append(move)
+            self.__undoMove()
+            move.piece.is_dama = was_dama
+        
+        if len(good_moves) == 0:
+            return moves
+        return good_moves
+    
+    def __filter__pursuit_moves(self, moves) -> list[Move]:
+        pursuit_moves = []
+        # enemy centroid
+        enemy_centroid = (0,0)
+        enemy_pieces = self.get_black_pieces() if self.whoMoves() == PieceColor.RED else self.get_red_pieces()
+        for piece in enemy_pieces:
+            enemy_centroid = (enemy_centroid[0] + piece.position[0], enemy_centroid[1] + piece.position[1])
+        enemy_centroid = (enemy_centroid[0] / len(enemy_pieces), enemy_centroid[1] / len(enemy_pieces))
+        for move in moves:
+            distance_from_centroid = (move.position_to[0] - enemy_centroid[0], move.position_to[1] - enemy_centroid[1])
+            current_distance_from_centroid = (move.position_from[0] - enemy_centroid[0], move.position_from[1] - enemy_centroid[1])
+            d1 = distance_from_centroid[0]**2 + distance_from_centroid[1]**2
+            d2 = current_distance_from_centroid[0]**2 + current_distance_from_centroid[1]**2
+            if d1 < d2:
+                pursuit_moves.append(move)
+        if len(pursuit_moves) == 0:
+            return moves
+        return pursuit_moves
+
+    def get_pieces_in_danger(self, color : PieceColor) -> list[Piece]:
+        pieces = []
+        for piece in self.hashMapPieces.values():
+            if piece is None:
+                continue
+            if piece.color == color:
+                if piece.canBeEaten(self):
+                    pieces.append(piece)
+        return pieces

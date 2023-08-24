@@ -28,6 +28,8 @@ piecesRadius = cell_width//2 -10
 selectedPieceRadius = piecesRadius +2.5
 selectedPieceStroke = 5
 
+player_level_previous_game = None
+
 msBlinkSelector = 500
 ticksLastBlinkSelector = 0
 
@@ -40,6 +42,7 @@ def mousePositionToCell(position):
 	return (position[0]//cell_width, position[1]//cell_width)
 
 def updateGamePostMove():
+	global assign_exp, player_level_previous_game
 	if board.status != GameStatus.IN_PROGRESS:
 		if board.status == GameStatus.BLACK_WINS:
 			player.add_win()
@@ -49,6 +52,8 @@ def updateGamePostMove():
 			pygame.mixer.Sound.play(draw_sound)
 		if not BLACK_AI_enabled:
 			assign_exp = True
+			player_level_previous_game = player.level
+		
 
 def drawSelectedPieceOverMouse():
 	global selectedPiece
@@ -88,7 +93,7 @@ def drawTextGameStatus():
 	textTurnColor = (0,0,0) if board.whoMoves() == PieceColor.RED else (255,255,255)
 	textTurnBgColor = (255,255,255) if board.whoMoves() == PieceColor.RED else (255,0,0)
 	if board.whoMoves() == PieceColor.BLACK and not BLACK_AI_enabled:
-		textTurn = f"Turno {board.turn_count+1}: Tocca a te"
+		textTurn = f"Turno {board.turn_count+1}: Muovi il Nero"
 	else: 
 		textTurn = f"Turno {board.turn_count+1}: il {board.whoMoves()} muove"
 
@@ -105,7 +110,7 @@ def drawTextGameStatus():
 	time_elapsed_s = (time_elapsed_ms//1000) 
 	time_elapsed_m = (time_elapsed_s//60)
 	time_elapsed_h = time_elapsed_m//60
-	timer_txt = f"Tempo: {time_elapsed_h} h {time_elapsed_m%60} m {time_elapsed_s%60} s"
+	timer_txt = f"Tempo: {time_elapsed_h} ore, {time_elapsed_m%60} min, {time_elapsed_s%60} sec"
 
 	text = normalText.render(timer_txt, True, textColor, (0,0,0))
 	textRect = text.get_rect()
@@ -161,7 +166,12 @@ def drawPlayerStats():
 	# draw background rect
 	pygame.draw.rect(canvas,bgColorRect,(8*cell_width +10, text_y - 30, width-(8*cell_width+20), height-text_y))
 	colorPlayerTxt = (255,255,255)
-	text = normalText.render(f"{player.name} - Livello {player.level}", True,colorPlayerTxt ,bgColorRect)
+	str_txt = f"{player.name} - Livello {player.level}"
+	if board.status != GameStatus.IN_PROGRESS and player_level_previous_game != player.level:
+		str_txt += f" (+{player.level -player_level_previous_game})"
+		colorPlayerTxt = (0,255,0)
+	text = normalText.render(str_txt, True,colorPlayerTxt ,bgColorRect)
+	colorPlayerTxt = (255,255,255)
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y)
 	canvas.blit(text, textRect)
@@ -239,7 +249,7 @@ except:
 
 exit = False
 RED_AI_enabled = True
-BLACK_AI_enabled = False
+BLACK_AI_enabled = True
 auto_reset = False
 
 player = Player("Pippo")
@@ -367,6 +377,10 @@ while not exit:
 				suggestedMoves = None
 			elif event.type == pygame.MOUSEBUTTONDOWN:
 				selectedPiece = board.getPieceByPosition(cellPosition)
+
+				if selectedPiece:
+					print(f"Piece can be eaten : {selectedPiece.canBeEaten(board)}")
+				
 				if selectedPiece and selectedPiece.color == board.whoMoves():
 					suggestedMoves = selectedPiece.evaluateMovePositions(board)
 				else:

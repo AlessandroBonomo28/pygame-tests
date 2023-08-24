@@ -4,7 +4,7 @@ import os
 import uuid
 import math
 class Player:
-    __constant_exp_multiplier : float = 6.5
+    __constant_exp_multiplier : float = 11
     ID : str
     total_experience : float
     experience : float
@@ -59,8 +59,8 @@ class Player:
         self.__save()
     
     def add_draw(self):
-            self.draws += 1
-            self.__save()
+        self.draws += 1
+        self.__save()
 
     def win_percent(self):
         if self.wins == 0:
