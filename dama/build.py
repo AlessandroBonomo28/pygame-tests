@@ -1,14 +1,16 @@
 import os
 # runs the following command with os, produces the executable in dist folder
 
+name = "Dama"
 
-os.system("pyinstaller game.py")
+os.system(f"pyinstaller game.py --icon=icon.ico --name={name} -y")
 
 # copy game_settings.json to dist folder
-os.system("copy game_settings.json dist\game")
+os.system(f"copy game_settings.json dist\{name}")
 
 # copy loop.mp3 to dist folder
-os.system("copy loop.mp3 dist\game")
-
+os.system(f"copy loop.mp3 dist\{name}")
+# copy icon.png to dist folder
+os.system(f"copy icon.png dist\{name}")
 # copy sound directory with all files to dist folder
-os.system("xcopy sounds dist\game\sounds /E /I /Y")
+os.system(f"xcopy sounds dist\{name}\sounds /E /I /Y")

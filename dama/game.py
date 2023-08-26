@@ -2,10 +2,9 @@ import pygame,os,json
 
 from model.dama import *
 from model.player import *
+from model.my_button import *
 
 pygame.init()
-#width = 800
-#height = 500
 
 width = pygame.display.Info().current_w
 height = pygame.display.Info().current_h - pygame.display.Info().current_h//10
@@ -37,6 +36,17 @@ selectedPiece = None
 suggestedMoves = None
 
 time_elapsed_ms = 0
+eat_streak_happening = False
+
+def resetGame():
+	global board, selectedPiece, suggestedMoves, time_elapsed_ms,button_reset
+	board.reset()
+	time_elapsed_ms = 0
+	selectedPiece = None
+	suggestedMoves = None
+	button_reset.set_blink(False)
+	button_reset.set_original_color()
+	pygame.mixer.Sound.play(start_game)
 
 def mousePositionToCell(position):
 	return (position[0]//cell_width, position[1]//cell_width)
@@ -50,6 +60,9 @@ def updateGamePostMove():
 		elif board.status == GameStatus.DRAW:
 			player.add_draw()
 			pygame.mixer.Sound.play(draw_sound)
+		elif board.status == GameStatus.RED_WINS:
+			player.add_loss()
+			pygame.mixer.Sound.play(lose_sound)
 		if not BLACK_AI_enabled:
 			assign_exp = True
 			player_level_previous_game = player.level
@@ -66,7 +79,7 @@ def drawSelectedPieceOverMouse():
 			pygame.draw.circle(canvas,(255,255,0),pygame.mouse.get_pos(), piecesRadius//2)
 def drawPieces(board : Board): # draw red circle or black circle
 	for piece in board.hashMapPieces.values():
-		if piece is None or piece == selectedPiece:
+		if piece is None or (piece == selectedPiece and board.whoMoves() == PieceColor.BLACK and not BLACK_AI_enabled):
 			continue
 		if piece.color == PieceColor.RED:
 			pygame.draw.circle(canvas,redPiecesColor,((piece.position[0]+0.5)*cell_width,(piece.position[1]+0.5)*cell_width), piecesRadius)
@@ -98,7 +111,10 @@ def drawTextGameStatus():
 		textTurn = f"Turno {board.turn_count+1}: il {board.whoMoves()} muove"
 
 	if board.status != GameStatus.IN_PROGRESS:
-		textTurn = "FINE PARTITA ! "
+		if BLACK_AI_enabled:
+			textTurn = f"{board.status}"
+		else: 
+			textTurn = "Hai perso!" if board.status == GameStatus.RED_WINS else "Hai vinto!" if board.status == GameStatus.BLACK_WINS else "Patta!"
 		textTurnColor = (255,255,255)
 		textTurnBgColor = (255,0,0)
 	text = fontTurn.render(textTurn, True, textTurnColor, textTurnBgColor)
@@ -110,7 +126,12 @@ def drawTextGameStatus():
 	time_elapsed_s = (time_elapsed_ms//1000) 
 	time_elapsed_m = (time_elapsed_s//60)
 	time_elapsed_h = time_elapsed_m//60
-	timer_txt = f"Tempo: {time_elapsed_h} ore, {time_elapsed_m%60} min, {time_elapsed_s%60} sec"
+	if time_elapsed_h > 0:
+		timer_txt = f"Tempo: {time_elapsed_h} ore, {time_elapsed_m%60} min, {time_elapsed_s%60} sec"
+	elif time_elapsed_m > 0:
+		timer_txt = f"Tempo: {time_elapsed_m%60} min, {time_elapsed_s%60} sec"
+	else:
+		timer_txt = f"Tempo: {time_elapsed_s%60} sec"
 
 	text = normalText.render(timer_txt, True, textColor, (0,0,0))
 	textRect = text.get_rect()
@@ -119,10 +140,7 @@ def drawTextGameStatus():
 
 	status_text_color = (255,255,255)
 	bg_status_color = (0,0,0)
-	if board.status != GameStatus.IN_PROGRESS:
-		bg_status_color = (255,0,0)
-		#status_text_color = (255,0,0) if board.status == GameStatus.RED_WINS else (0,255,0)
-	text = normalText.render(f"Stato gioco: {board.status}", True, status_text_color,bg_status_color)
+	text = normalText.render(f"Punteggio: ", True, status_text_color,bg_status_color)
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*2)
 	canvas.blit(text, textRect)
@@ -143,11 +161,11 @@ def drawTextGameStatus():
 	textRect.center = (text_x, text_y + text_spacing*3)
 	canvas.blit(text, textRect)
 
-	reset_color = (0,0,0) if board.status == GameStatus.IN_PROGRESS else (255,0,0)
-	text = normalText.render(f"Premi R per riprovare", True, (255,255,255), reset_color)
-	textRect = text.get_rect()
-	textRect.center = (text_x, text_y + text_spacing*4)
-	canvas.blit(text, textRect)
+	if board.status != GameStatus.IN_PROGRESS:
+		button_reset.set_blink(True)
+	
+	button_reset.position = (text_x, text_y + text_spacing*4)
+	button_reset.draw(canvas)
 
 	text = normalText.render(f"Premi M per mutare la musica", True, textColor, (0,0,0))
 	textRect = text.get_rect()
@@ -222,7 +240,10 @@ win_sound = pygame.mixer.Sound("sounds/win.mp3")
 lose_sound = pygame.mixer.Sound("sounds/lose.mp3")
 draw_sound = pygame.mixer.Sound("sounds/draw.mp3")
 dama_sound = pygame.mixer.Sound("sounds/dama.mp3")
-enemy_dama_sound = pygame.mixer.Sound("sounds/enemy_dama.mp3")
+start_game = draw_sound
+wrong_sound = pygame.mixer.Sound("sounds/wrong.mp3")
+enemy_dama_sound = wrong_sound
+
 
 pygame.mixer.music.load('loop.mp3')
 pygame.mixer.music.play(-1)
@@ -235,6 +256,11 @@ playerText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.25))
 
 #canvas = pygame.display.set_mode((width,height))
 canvas = pygame.display.set_mode((width,height),pygame.RESIZABLE)
+
+icon = pygame.image.load('icon.png')
+# make it a square
+icon = pygame.transform.scale(icon, (32, 32))
+pygame.display.set_icon(icon)
 
 # TITLE OF CANVAS
 pygame.display.set_caption("Dama 2023")
@@ -254,11 +280,13 @@ auto_reset = False
 
 player = Player("Pippo")
 
+button_reset = myButton("Ricomincia partita", (0,0), (0,100,0), (255,255,255), normalText,False,border_color=(255,255,255))
+
 assign_exp = False
 
 black_pieces = []
 red_pieces = []
-for i in range(3):
+for i in range(2):
 	for j in range(8):
 		if (i+j)%2 == 0:
 			red_pieces.append(Piece((j,i),PieceColor.RED,False))
@@ -276,7 +304,7 @@ board = Board([
 	  ])
 """
 while not exit:	
-	if board.status == GameStatus.IN_PROGRESS:
+	if board.status == GameStatus.IN_PROGRESS and board.turn_count > 0:
 		time_elapsed_ms += pygame.time.Clock().tick(60)
 	elif assign_exp:
 		assign_exp = False
@@ -303,6 +331,7 @@ while not exit:
 			selectedPiece = None
 			suggestedMoves = None
 			pygame.time.delay(AI_delay_ms)
+			updateGamePostMove()
 			pygame.mixer.Sound.play(move_sound)
 			time_elapsed_ms += AI_delay_ms
 	elif auto_reset:
@@ -334,11 +363,7 @@ while not exit:
 			if event.key == pygame.K_ESCAPE:
 				exit = True
 			if event.key == pygame.K_r:
-				print("Reset game")
-				board.reset()
-				time_elapsed_ms = 0
-				selectedPiece = None
-				suggestedMoves = None
+				resetGame()
 				break
 			if event.key == pygame.K_m:
 				audio_enabled = not audio_enabled
@@ -346,6 +371,10 @@ while not exit:
 					pygame.mixer.music.unpause()
 				else:
 					pygame.mixer.music.pause()
+		if event.type == pygame.MOUSEBUTTONDOWN and button_reset.mouse_over(pygame.mouse.get_pos()):
+			resetGame()
+			break
+		
 		if (event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEBUTTONUP) and board.whoMoves() == PieceColor.BLACK and not BLACK_AI_enabled:
 			pos = pygame.mouse.get_pos()
 
@@ -383,6 +412,11 @@ while not exit:
 				
 				if selectedPiece and selectedPiece.color == board.whoMoves():
 					suggestedMoves = selectedPiece.evaluateMovePositions(board)
+					if len(suggestedMoves) == 0:
+						selectedPiece = None
+						suggestedMoves = None
+						print("No moves available for this piece")
+						pygame.mixer.Sound.play(wrong_sound)
 				else:
 					selectedPiece = None
 					suggestedMoves = None
@@ -390,13 +424,17 @@ while not exit:
 			if board.whoMoves() == PieceColor.RED:
 				selectedPiece = None
 				suggestedMoves = None
-	try:
+	
+	try: # eat streak
 		last_move = board.moves[len(board.moves)-1]
 		if last_move.does_eat and last_move.piece.color == board.whoMoves():
 			selectedPiece = last_move.piece
 			suggestedMoves = selectedPiece.evaluateMovePositions(board)
 			# filtra mosse che mangiano
 			suggestedMoves = list(filter(lambda move: move.does_eat, suggestedMoves))
+			eat_streak_happening = True
+		else:
+			eat_streak_happening = False
 	except:
 		pass
 			
@@ -408,7 +446,7 @@ while not exit:
 				pygame.draw.rect(canvas,evenCellColor,((i+start_x_board)*cell_width,j*cell_width,cell_width,cell_width))
 	drawPieces(board)
 	drawPreviousMove()
-	if selectedPiece:
+	if selectedPiece and board.whoMoves() == PieceColor.BLACK and not BLACK_AI_enabled:
 		drawSelectedPieceOverMouse()
 		drawCircleAroundSelectedPiece()
 		drawMovesForSelectedPiece()

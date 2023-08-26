@@ -5,10 +5,10 @@ class PieceColor:
     BLACK = "Nero"
 
 class GameStatus:
-    RED_WINS = "Rosso vince"
-    BLACK_WINS = "Nero vince"
+    RED_WINS = "il Rosso vince"
+    BLACK_WINS = "il Nero vince"
     DRAW = "Patta"
-    IN_PROGRESS = "In corso"
+    IN_PROGRESS = "Partita in corso"
 
 class Piece:
     is_dama : bool
@@ -154,7 +154,7 @@ class Board:
     def reset(self):
         black_pieces = []
         red_pieces = []
-        for i in range(3):
+        for i in range(2):
             for j in range(8):
                 if (i+j)%2 == 0:
                     red_pieces.append(Piece((j,i),PieceColor.RED,False))
