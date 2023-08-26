@@ -3,6 +3,7 @@ import pygame,os,json
 from model.dama import *
 from model.player import *
 from model.my_button import *
+from model.logger import *
 
 pygame.init()
 
@@ -38,6 +39,8 @@ suggestedMoves = None
 time_elapsed_ms = 0
 eat_streak_happening = False
 
+logger = Logger()
+
 def resetGame():
 	global board, selectedPiece, suggestedMoves, time_elapsed_ms,button_reset
 	board.reset()
@@ -54,6 +57,8 @@ def mousePositionToCell(position):
 def updateGamePostMove():
 	global assign_exp, player_level_previous_game
 	if board.status != GameStatus.IN_PROGRESS:
+		log = GameLog(board.status, datetime.datetime.now(), time_elapsed_ms)
+		logger.log(log)
 		if board.status == GameStatus.BLACK_WINS:
 			player.add_win()
 			pygame.mixer.Sound.play(win_sound)
