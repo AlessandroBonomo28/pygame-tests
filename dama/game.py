@@ -54,23 +54,29 @@ def resetGame():
 def mousePositionToCell(position):
 	return (position[0]//cell_width, position[1]//cell_width)
 
+
 def updateGamePostMove():
 	global assign_exp, player_level_previous_game
 	if board.status != GameStatus.IN_PROGRESS:
-		log = GameLog(board.status, datetime.datetime.now(), time_elapsed_ms)
-		logger.log(log)
 		if board.status == GameStatus.BLACK_WINS:
-			player.add_win()
 			pygame.mixer.Sound.play(win_sound)
 		elif board.status == GameStatus.DRAW:
-			player.add_draw()
 			pygame.mixer.Sound.play(draw_sound)
 		elif board.status == GameStatus.RED_WINS:
-			player.add_loss()
 			pygame.mixer.Sound.play(lose_sound)
+		
 		if not BLACK_AI_enabled:
+			if board.status == GameStatus.BLACK_WINS:
+				player.add_win()
+			elif board.status == GameStatus.DRAW:
+				player.add_draw()
+			elif board.status == GameStatus.RED_WINS:
+				player.add_loss()
 			assign_exp = True
 			player_level_previous_game = player.level
+			log = GameLog(board.status, datetime.datetime.now(), time_elapsed_ms,
+					board.black_score, board.red_score, board.turn_count, board.moves)
+			logger.log(log)
 		
 
 def drawSelectedPieceOverMouse():

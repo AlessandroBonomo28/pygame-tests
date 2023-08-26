@@ -65,7 +65,10 @@ class Player:
     def win_percent(self):
         if self.wins == 0:
             return 0
-        return (self.wins / (self.wins + self.losses))* 100
+        return (self.wins / (self.wins + self.losses + self.draws))* 100
+    
+    def total_games(self):
+        return self.wins + self.losses + self.draws
 
     def add_exp(self,exp):
         self.experience += exp
