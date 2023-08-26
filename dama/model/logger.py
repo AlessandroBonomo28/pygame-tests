@@ -1,34 +1,31 @@
 import datetime,os,json
 class GameLog:
     status : any
-    json_moves : list[any]
+    json_hashmaps : list[any]
     timestamp : datetime.datetime 
     duration_ms : int
     black_score : int
     red_score : int
     turns : int
-    def __moves_to_json(self, moves : list[any]) -> str:
-        for move in moves:
-            eaten = None if move.piece_to_eat is None else json.dumps(move.piece_to_eat.__dict__)
-            json_move = {
-                "piece" : json.dumps(move.piece.__dict__),
-                "from" : move.position_from,
-                "to" : move.position_to,
-                "eaten" : eaten,
-                "does_eat" : move.does_eat,
-            }
-            self.json_moves.append(json_move)
+    def create_json_hashmap_list(self, hashmaps : list[any]) -> str:
+        for hash in hashmaps:
+            json_hash = {}
+            for key in hash:
+                if hash.get(key) is None:
+                    continue
+                json_hash[str(key)] = json.dumps(hash[key].__dict__, indent=4)
+            self.json_hashmaps.append(json_hash)
             
 
-    def __init__(self, status, timestamp, duration_ms, black_score,red_score,turns,moves):
+    def __init__(self, status, timestamp, duration_ms, black_score,red_score,turns,hashmaps):
         self.black_score = black_score
         self.red_score = red_score
         self.turns = turns
-        self.json_moves = []
+        self.json_hashmaps = []
         self.status = status
         self.timestamp = timestamp
         self.duration_ms = duration_ms
-        self.__moves_to_json(moves)
+        self.create_json_hashmap_list(hashmaps)
 
 class Logger:
     base_path : str = "logs"
@@ -47,7 +44,7 @@ class Logger:
                 "black_score" : game_log.black_score,
                 "red_score" : game_log.red_score,
                 "turns" : game_log.turns,
-                "moves" : game_log.json_moves,
+                "board_hashmaps" : game_log.json_hashmaps,
             }
             self.__write_json(path, json_log)
         except:
@@ -64,9 +61,10 @@ class Logger:
     def __write_json(self, path, to_write : list):
         try:
             with open(path, "w") as f:
-                json.dump(to_write, f,indent=4)
-        except:
-            print("Error while writing json")
+                # dump a list of dumped json
+                json.dump(to_write, f, indent=4)
+        except Exception as e:
+            print("Error while writing json",e)
 
     def __append_to_json_list(self, path, item):
         list_to_write = self.__read_json(path)

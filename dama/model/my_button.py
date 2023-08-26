@@ -33,6 +33,9 @@ class myButton:
         self.__original_color = color
         self.__timer_blink = 0
 
+    def set_new_color(self, color):
+        self.__original_color = color
+
     def draw(self, screen):
         if self.__blink and self.__timer_blink < self.__timer_blink_max:
             self.__timer_blink += pygame.time.Clock().tick(60)

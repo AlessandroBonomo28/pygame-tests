@@ -12,7 +12,6 @@ class GameStatus:
 
 class Piece:
     is_dama : bool
-    steps : int
     position : tuple
     color : PieceColor
 
@@ -20,11 +19,9 @@ class Piece:
         self.is_dama = is_dama
         self.position = position
         self.color = color
-        self.steps = 0
 
     def move(self, position):
         self.position = position
-        self.steps += 1
         if self.color == PieceColor.RED and self.position[1] == 7:
             self.is_dama = True
         elif self.color == PieceColor.BLACK and self.position[1] == 0:
@@ -93,8 +90,10 @@ class Piece:
 
     def __str__(self):
         col = "Red" if self.color == PieceColor.RED else "Black"
-        return col+" "+str(self.steps) + " " + str(self.position) + " Dama: " + str(self.is_dama)
+        return col+  str(self.position) + " Dama: " + str(self.is_dama)
 
+    def __copy__(self):
+        return Piece(self.position, self.color, self.is_dama)
 
 class Move:
     piece : Piece
@@ -127,6 +126,7 @@ class Board:
     width : int = 8
     turn_count : int
     moves : list[Move]
+    hashMapList : list[dict[tuple, Piece]]
     hashMapPieces : dict[tuple, Piece]
     red_score : int 
     black_score : int
@@ -134,6 +134,7 @@ class Board:
         self.black_score = 0
         self.red_score = 0
         self.hashMapPieces = {}
+        self.hashMapList = []
         self.moves = []
         self.turn_count = 0
         if hashMap is None:
@@ -143,7 +144,7 @@ class Board:
                 self.hashMapPieces[piece.position] = piece
         else:
             self.hashMapPieces = hashMap
-            
+        self.append_hashmap_copy(self.hashMapPieces)
         self.__updateStatus()
 
     def get_red_pieces(self):
@@ -196,8 +197,14 @@ class Board:
         else:
             self.status = GameStatus.IN_PROGRESS
 
+    def append_hashmap_copy(self, hashMap : dict[tuple, Piece]):
+        copy_hash = {}
+        for key in hashMap.keys():
+            if hashMap[key] is not None:
+                copy_hash[key] = hashMap[key].__copy__()
+        self.hashMapList.append(copy_hash)
+
     def makeMove(self, move : Move):
-        was_dama = move.piece.is_dama
         who_moves = "Red" if self.whoMoves() == PieceColor.RED else "Black"
         print(f"{who_moves} moves {move}")
         if move.does_eat:
@@ -205,11 +212,7 @@ class Board:
         else:
             self.__movePiece(move.piece, move.position_to)
         self.moves.append(move)
-
-        if not was_dama and move.piece.is_dama and move.piece.color == PieceColor.RED:
-            self.red_score += 1 * self.__score_multiplier
-        elif not was_dama and move.piece.is_dama and move.piece.color == PieceColor.BLACK:
-            self.black_score += 1 * self.__score_multiplier
+        self.append_hashmap_copy(self.hashMapPieces)
 
         possible_moves = move.piece.evaluateMovePositions(self)
         # filter only eat moves
@@ -217,6 +220,7 @@ class Board:
         
         if move.does_eat and len(possible_eat_moves) > 0:
             self.turn_count += 0
+            # auto eat
             #if len(possible_eat_moves) == 1:
             #    self.makeMove(possible_eat_moves[0])
         else:
@@ -241,7 +245,6 @@ class Board:
         self.hashMapPieces[position] = piece
 
     def printHashmap(self):
-        # stampa in forma di matrice
         for i in range(self.height):
             for j in range(self.width):
                 try:

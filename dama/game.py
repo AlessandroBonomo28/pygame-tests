@@ -75,9 +75,21 @@ def updateGamePostMove():
 			assign_exp = True
 			player_level_previous_game = player.level
 			log = GameLog(board.status, datetime.datetime.now(), time_elapsed_ms,
-					board.black_score, board.red_score, board.turn_count, board.moves)
+					board.black_score, board.red_score, board.turn_count, board.hashMapList)
 			logger.log(log)
-		
+
+def isPlayerTurn():
+	return board.whoMoves() == PieceColor.RED and not RED_AI_enabled or \
+		board.whoMoves() == PieceColor.BLACK and not BLACK_AI_enabled
+
+def isPlayerVsPlayer():
+	return not RED_AI_enabled and not BLACK_AI_enabled
+
+def isPlayerVsAI():
+	return (RED_AI_enabled and not BLACK_AI_enabled) or (not RED_AI_enabled and BLACK_AI_enabled)
+
+def isAIvsAI():
+	return RED_AI_enabled and BLACK_AI_enabled
 
 def drawSelectedPieceOverMouse():
 	global selectedPiece
@@ -90,7 +102,7 @@ def drawSelectedPieceOverMouse():
 			pygame.draw.circle(canvas,(255,255,0),pygame.mouse.get_pos(), piecesRadius//2)
 def drawPieces(board : Board): # draw red circle or black circle
 	for piece in board.hashMapPieces.values():
-		if piece is None or (piece == selectedPiece and board.whoMoves() == PieceColor.BLACK and not BLACK_AI_enabled):
+		if piece is None or (piece == selectedPiece and isPlayerTurn()):
 			continue
 		if piece.color == PieceColor.RED:
 			pygame.draw.circle(canvas,redPiecesColor,((piece.position[0]+0.5)*cell_width,(piece.position[1]+0.5)*cell_width), piecesRadius)
@@ -177,6 +189,11 @@ def drawTextGameStatus():
 	
 	button_reset.position = (text_x, text_y + text_spacing*4)
 	button_reset.draw(canvas)
+	
+	if not hide_button_enable_black_AI:
+		btn_AI_txt_height = button_enable_black_AI.font.get_height()
+		button_enable_black_AI.position = (width-btn_AI_txt_height*1.5,btn_AI_txt_height)
+		button_enable_black_AI.draw(canvas)
 
 	text = normalText.render(f"Premi M per mutare la musica", True, textColor, (0,0,0))
 	textRect = text.get_rect()
@@ -292,7 +309,8 @@ auto_reset = False
 player = Player("Pippo")
 
 button_reset = myButton("Ricomincia partita", (0,0), (0,100,0), (255,255,255), normalText,False,border_color=(255,255,255))
-
+button_enable_black_AI = myButton("Auto",(0,0), (100,100,0), (255,255,255), playerText,False,border_color=(255,255,255))
+hide_button_enable_black_AI = True
 assign_exp = False
 
 black_pieces = []
@@ -304,16 +322,7 @@ for i in range(2):
 			black_pieces.append(Piece((7-j,7-i),PieceColor.BLACK,False))
 
 board = Board(red_pieces,black_pieces)
-"""
-# patta configuration
-board = Board([
-	       	  Piece((5,5),PieceColor.RED,False),
-			  Piece((6,6),PieceColor.RED,False),],
-			  
-			  [
-      		   Piece((7,7),PieceColor.BLACK,False),
-	  ])
-"""
+
 while not exit:	
 	if board.status == GameStatus.IN_PROGRESS and board.turn_count > 0:
 		time_elapsed_ms += pygame.time.Clock().tick(60)
@@ -386,7 +395,13 @@ while not exit:
 			resetGame()
 			break
 		
-		if (event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEBUTTONUP) and board.whoMoves() == PieceColor.BLACK and not BLACK_AI_enabled:
+		if not hide_button_enable_black_AI and event.type == pygame.MOUSEBUTTONUP and button_enable_black_AI.mouse_over(pygame.mouse.get_pos()):
+			BLACK_AI_enabled = not BLACK_AI_enabled
+			auto_reset = True if BLACK_AI_enabled else False
+			new_color = (150,150,0) if BLACK_AI_enabled else (100,100,0)
+			button_enable_black_AI.set_new_color(new_color)
+			
+		if (event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEBUTTONUP) and isPlayerTurn():
 			pos = pygame.mouse.get_pos()
 
 			if board.status != GameStatus.IN_PROGRESS:
@@ -432,7 +447,7 @@ while not exit:
 					selectedPiece = None
 					suggestedMoves = None
 			
-			if board.whoMoves() == PieceColor.RED:
+			if board.whoMoves() == PieceColor.RED and RED_AI_enabled:
 				selectedPiece = None
 				suggestedMoves = None
 	
@@ -457,7 +472,7 @@ while not exit:
 				pygame.draw.rect(canvas,evenCellColor,((i+start_x_board)*cell_width,j*cell_width,cell_width,cell_width))
 	drawPieces(board)
 	drawPreviousMove()
-	if selectedPiece and board.whoMoves() == PieceColor.BLACK and not BLACK_AI_enabled:
+	if selectedPiece and isPlayerTurn():
 		drawSelectedPieceOverMouse()
 		drawCircleAroundSelectedPiece()
 		drawMovesForSelectedPiece()
