@@ -29,8 +29,11 @@ class GameLog:
 
 class Logger:
     base_path : str = "logs"
-    def __init__(self):
-        pass
+    max_logs : int
+    delete_old_logs : bool
+    def __init__(self, max_logs = 10, delete_old_logs = True):
+        self.max_logs = max_logs
+        self.delete_old_logs = delete_old_logs
     def log(self, game_log : GameLog):
         try:
             filename = datetime.datetime.now().strftime("%Y-%m-%d %H %M %S")
@@ -47,9 +50,21 @@ class Logger:
                 "board_hashmaps" : game_log.json_hashmaps,
             }
             self.__write_json(path, json_log)
+            if self.delete_old_logs:
+                self.__delete_old_logs()
         except:
             print("Error while logging")
 
+    def __delete_old_logs(self):
+        try:
+            logs = os.listdir(self.base_path)
+            logs.sort()
+            if len(logs) > self.max_logs:
+                for i in range(len(logs) - self.max_logs):
+                    os.remove(f"{self.base_path}/{logs[i]}")
+        except Exception as e:
+            print("Error while deleting old logs",e)
+    
     def __read_json(self, path) -> list:
         try:
             with open(path, "r") as f:
@@ -65,19 +80,3 @@ class Logger:
                 json.dump(to_write, f, indent=4)
         except Exception as e:
             print("Error while writing json",e)
-
-    def __append_to_json_list(self, path, item):
-        list_to_write = self.__read_json(path)
-        list_to_write.append(item)
-        self.__write_json(path, list_to_write)
-
-
-"""logger = Logger()
-from model.dama import Move,Piece,PieceColor
-piece1 = Piece((0,0),PieceColor.RED,False)
-piece2 = Piece((7,7),PieceColor.BLACK,False)
-moves = [
-    Move(piece1, (0,0), (2,2),"move"),
-    Move(piece2, (7,7), (6,6),"move"),
-]
-logger.log(GameLog("test",datetime.datetime.now(), 1000,moves=moves))"""

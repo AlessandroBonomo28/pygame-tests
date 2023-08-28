@@ -1,4 +1,8 @@
-import pygame,os,json
+import pygame,datetime,json
+
+from tkinter import *
+from tkinter import messagebox
+
 
 from model.dama import *
 from model.player import *
@@ -40,6 +44,10 @@ time_elapsed_ms = 0
 eat_streak_happening = False
 
 logger = Logger()
+
+def popUp(title,msg):
+	Tk().wm_withdraw() #to hide the main window
+	messagebox.showinfo(title,msg)
 
 def resetGame():
 	global board, selectedPiece, suggestedMoves, time_elapsed_ms,button_reset
@@ -205,6 +213,26 @@ def drawExpBar(x,y):
 	pygame.draw.rect(canvas,(0,0,0),(x,y,w,cell_width//3))
 	pygame.draw.rect(canvas,(0,0,220),(x+cell_width//24,y+cell_width//24,(w-cell_width//24)*(player.experience/player.exp_limit_current_level()),cell_width//4))
 
+def drawTextAutoplay():
+	text_x = 8*cell_width + (width -8*cell_width)//2
+	text_y = height//2 + cell_width//2 +10
+	# draw background rect
+	bg = (64,64,0)
+	pygame.draw.rect(canvas,bg,(8*cell_width +10, text_y - 30, width-(8*cell_width+20), height-text_y))
+	
+	str_txt = "Autopilota attivo"
+	text = normalText.render(str_txt, True,(255,255,255) ,bg)
+	textRect = text.get_rect()
+	textRect.center = (text_x, text_y)
+	canvas.blit(text, textRect)
+
+	# scrivi un altro testo sotto
+	str_txt = "Premi su 'Auto' per disattivarlo"
+	text = normalText.render(str_txt, True,(255,255,255) ,bg)
+	textRect = text.get_rect()
+	textRect.center = (text_x, text_y+text_spacing*1.5)
+	canvas.blit(text, textRect)
+
 def drawPlayerStats():
 	text_x = 8*cell_width + (width -8*cell_width)//2
 	text_y = height//2 + cell_width//2 +10
@@ -297,22 +325,33 @@ try:
 	with open("game_settings.json") as f:
 		game_settings = json.load(f)
 		AI_delay_ms = game_settings["AI_delay_ms"]
+		player_name = game_settings["player_name"]
+		day_born = game_settings["day_born"]
+		month_born = game_settings["month_born"]
+		year_born = game_settings["year_born"]
+		hide_button_enable_black_AI = game_settings["hide_button_enable_black_AI"]
+		logger.max_logs = game_settings["max_logs"]
 except:
 	AI_delay_ms = 500
-
+	player_name = "Pippo"
+	day_born = 3
+	month_born = 9
+	year_born = 1934
+	hide_button_enable_black_AI = True
+	logger.max_logs = 10
 
 exit = False
 RED_AI_enabled = True
 BLACK_AI_enabled = False
 auto_reset = False
+assign_exp = False
 
-player = Player("Pippo")
+player = Player(player_name)
 
 button_reset = myButton("Ricomincia partita", (0,0), (0,100,0), (255,255,255), normalText,False,border_color=(255,255,255))
 button_enable_black_AI = myButton("Auto",(0,0), (100,100,0), (255,255,255), playerText,False,border_color=(255,255,255))
-hide_button_enable_black_AI = True
-assign_exp = False
 
+# init board
 black_pieces = []
 red_pieces = []
 for i in range(2):
@@ -322,6 +361,15 @@ for i in range(2):
 			black_pieces.append(Piece((7-j,7-i),PieceColor.BLACK,False))
 
 board = Board(red_pieces,black_pieces)
+
+now = datetime.datetime.now()
+if now.day == day_born and now.month == month_born:
+	pygame.mixer.music.pause()
+	pygame.mixer.Sound.play(win_sound)
+	str_now = now.strftime("%d/%m/%Y")
+	years = now.year - year_born
+	popUp("Oggi, "+str_now+" è un giorno speciale!",f"Buon {years}° compleanno {player.name}!")
+	pygame.mixer.music.unpause()
 
 while not exit:	
 	if board.status == GameStatus.IN_PROGRESS and board.turn_count > 0:
@@ -398,7 +446,7 @@ while not exit:
 		if not hide_button_enable_black_AI and event.type == pygame.MOUSEBUTTONUP and button_enable_black_AI.mouse_over(pygame.mouse.get_pos()):
 			BLACK_AI_enabled = not BLACK_AI_enabled
 			auto_reset = True if BLACK_AI_enabled else False
-			new_color = (150,150,0) if BLACK_AI_enabled else (100,100,0)
+			new_color = (0,200,0) if BLACK_AI_enabled else (100,100,0)
 			button_enable_black_AI.set_new_color(new_color)
 			
 		if (event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEBUTTONUP) and isPlayerTurn():
@@ -479,7 +527,9 @@ while not exit:
 	pygame.draw.rect(canvas,bgLogColor,(height,0,width-height,height))
 
 	drawTextGameStatus()
-	if RED_AI_enabled and not BLACK_AI_enabled:
+	if isAIvsAI():
+		drawTextAutoplay()
+	else:
 		drawPlayerStats()
 	pygame.display.update()
 
