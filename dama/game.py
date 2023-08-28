@@ -443,6 +443,7 @@ while not exit:
 			resetGame()
 			break
 		
+		# clicked on button enable black AI
 		if not hide_button_enable_black_AI and event.type == pygame.MOUSEBUTTONUP and button_enable_black_AI.mouse_over(pygame.mouse.get_pos()):
 			BLACK_AI_enabled = not BLACK_AI_enabled
 			auto_reset = True if BLACK_AI_enabled else False
@@ -491,6 +492,10 @@ while not exit:
 						suggestedMoves = None
 						print("No moves available for this piece")
 						pygame.mixer.Sound.play(wrong_sound)
+				elif selectedPiece and selectedPiece.color != board.whoMoves():
+					pygame.mixer.Sound.play(wrong_sound)
+					selectedPiece = None
+					suggestedMoves = None
 				else:
 					selectedPiece = None
 					suggestedMoves = None
