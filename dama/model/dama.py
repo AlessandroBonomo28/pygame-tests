@@ -211,9 +211,10 @@ class Board:
             self.__eatPiece(move.piece, move.piece_to_eat,move.position_to)
         else:
             self.__movePiece(move.piece, move.position_to)
+        
         self.moves.append(move)
         self.append_hashmap_copy(self.hashMapPieces)
-
+        
         possible_moves = move.piece.evaluateMovePositions(self)
         # filter only eat moves
         possible_eat_moves = list(filter(lambda m: m.does_eat, possible_moves)) 
@@ -370,3 +371,9 @@ class Board:
                 if piece.canBeEaten(self):
                     pieces.append(piece)
         return pieces
+    
+
+class Replay:
+    boards_hash = list[dict[tuple, Piece]]
+    def __init__(self, boards_hash) -> None:
+        self.boards_hash = boards_hash

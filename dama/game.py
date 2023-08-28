@@ -3,7 +3,6 @@ import pygame,datetime,json
 from tkinter import *
 from tkinter import messagebox
 
-
 from model.dama import *
 from model.player import *
 from model.my_button import *
@@ -43,7 +42,42 @@ suggestedMoves = None
 time_elapsed_ms = 0
 eat_streak_happening = False
 
+viewing_replay = False
+
 logger = Logger()
+
+def load_last_replay() -> Replay:
+	try:
+		logs = os.listdir(logger.base_path)
+		logs.sort()
+		if len(logs) > 0:
+			last_log = logs[len(logs)-1]
+			path = f"{logger.base_path}/{last_log}"
+			json_log = logger.read_json(path)
+			return Replay(json_log["board_hashmaps"])
+	except Exception as e:
+		print("Error while loading last replay",e)
+		return None
+
+def play_replay(replay : Replay, step : int):
+	global board
+	try:
+		hash = replay.boards_hash[step]
+		board.hashMapPieces = {}
+		for key in hash.keys():
+			# convert key to tuple (x,y)
+			x = int(key[1])
+			y = int(key[4])
+			json_value = json.loads(hash[key])
+			is_dama = bool(json_value["is_dama"])
+			position = (json_value["position"][0] , json_value["position"][1])
+			color = PieceColor.RED if json_value["color"] == "Rosso" else PieceColor.BLACK
+			board.hashMapPieces[(x,y)] = Piece(position,color,is_dama)
+	except Exception as e:
+		print("Error while loading replay",e)
+
+step_replay = 0
+last = load_last_replay()
 
 def popUp(title,msg):
 	Tk().wm_withdraw() #to hide the main window
@@ -395,11 +429,14 @@ while not exit:
 			
 		elif board.whoMoves() == PieceColor.BLACK and BLACK_AI_enabled:
 			# AI BLACK
-			board.makeMoveBlackAI()
+			move, was_dama = board.makeMoveBlackAI()
 			selectedPiece = None
 			suggestedMoves = None
 			pygame.time.delay(AI_delay_ms)
 			updateGamePostMove()
+			if move:
+				if not was_dama and move.piece.is_dama:
+					pygame.mixer.Sound.play(dama_sound)
 			pygame.mixer.Sound.play(move_sound)
 			time_elapsed_ms += AI_delay_ms
 	elif auto_reset:
@@ -430,6 +467,9 @@ while not exit:
 		if event.type == pygame.KEYDOWN:
 			if event.key == pygame.K_ESCAPE:
 				exit = True
+			if event.key == pygame.K_a:
+				play_replay(last,step_replay)
+				step_replay+=1
 			if event.key == pygame.K_r:
 				resetGame()
 				break

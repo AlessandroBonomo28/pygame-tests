@@ -65,7 +65,7 @@ class Logger:
         except Exception as e:
             print("Error while deleting old logs",e)
     
-    def __read_json(self, path) -> list:
+    def read_json(self, path) -> list:
         try:
             with open(path, "r") as f:
                 return json.load(f)
