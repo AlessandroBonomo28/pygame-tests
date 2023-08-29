@@ -395,11 +395,14 @@ while not exit:
 			
 		elif board.whoMoves() == PieceColor.BLACK and BLACK_AI_enabled:
 			# AI BLACK
-			board.makeMoveBlackAI()
+			move, was_dama = board.makeMoveBlackAI()
 			selectedPiece = None
 			suggestedMoves = None
 			pygame.time.delay(AI_delay_ms)
 			updateGamePostMove()
+			if move:
+				if not was_dama and move.piece.is_dama:
+					pygame.mixer.Sound.play(dama_sound)
 			pygame.mixer.Sound.play(move_sound)
 			time_elapsed_ms += AI_delay_ms
 	elif auto_reset:
