@@ -1,4 +1,4 @@
-import random
+import random, datetime
 
 class PieceColor:
     RED = "Rosso"
@@ -204,7 +204,7 @@ class Board:
                 copy_hash[key] = hashMap[key].__copy__()
         self.hashMapList.append(copy_hash)
 
-    def makeMove(self, move : Move):
+    def makeMove(self, move : Move, append_hashmap : bool = True):
         who_moves = "Red" if self.whoMoves() == PieceColor.RED else "Black"
         print(f"{who_moves} moves {move}")
         if move.does_eat:
@@ -213,7 +213,8 @@ class Board:
             self.__movePiece(move.piece, move.position_to)
         
         self.moves.append(move)
-        self.append_hashmap_copy(self.hashMapPieces)
+        if append_hashmap:
+            self.append_hashmap_copy(self.hashMapPieces)
         
         possible_moves = move.piece.evaluateMovePositions(self)
         # filter only eat moves
@@ -333,7 +334,7 @@ class Board:
         
         for move in moves:
             was_dama = move.piece.is_dama # TODO puo' essere fatto nella funzione undo
-            self.makeMove(move)
+            self.makeMove(move, append_hashmap=False)
             if not move.piece.canBeEaten(self):
                 good_moves.append(move)
             self.__undoMove()
@@ -374,6 +375,18 @@ class Board:
     
 
 class Replay:
+    status : GameStatus
+    timestamp : datetime.datetime 
+    duration_ms : int
+    black_score : int
+    red_score : int
+    turns : int
     boards_hash = list[dict[tuple, Piece]]
-    def __init__(self, boards_hash) -> None:
+    def __init__(self, boards_hash, status, timestamp, duration_ms, black_score,red_score,turns):
+        self.black_score = black_score
+        self.red_score = red_score
+        self.turns = turns
+        self.status = status
+        self.timestamp = timestamp
+        self.duration_ms = duration_ms
         self.boards_hash = boards_hash

@@ -1,3 +1,4 @@
+from tkinter import filedialog
 import pygame,datetime,json
 
 from tkinter import *
@@ -43,8 +44,25 @@ time_elapsed_ms = 0
 eat_streak_happening = False
 
 viewing_replay = False
+manual_step_replay = True
 
 logger = Logger()
+
+def load_replay(path) -> Replay:
+	try:
+		json_log = logger.read_json(path)
+		status = json_log["status"]
+		timestamp = datetime.datetime.strptime(json_log["timestamp"],"%Y-%m-%d %H:%M:%S")
+		# json_log["duration"] = "0:00:15.789000"
+		duration_ms = int(datetime.timedelta(hours=int(json_log["duration"][0]),minutes=int(json_log["duration"][2:4]),seconds=int(json_log["duration"][5:7]),milliseconds=int(json_log["duration"][8:])).total_seconds()*1000)
+		black_score = json_log["black_score"]
+		red_score = json_log["red_score"]
+		turns = json_log["turns"]
+		board_hashmaps = json_log["board_hashmaps"]
+		return Replay(board_hashmaps, status, timestamp, duration_ms, black_score,red_score,turns)
+	except Exception as e:
+		print("Error while loading replay",e)
+		return None
 
 def load_last_replay() -> Replay:
 	try:
@@ -53,19 +71,16 @@ def load_last_replay() -> Replay:
 		if len(logs) > 0:
 			last_log = logs[len(logs)-1]
 			path = f"{logger.base_path}/{last_log}"
-			json_log = logger.read_json(path)
-			return Replay(json_log["board_hashmaps"])
+			return load_replay(path)
 	except Exception as e:
 		print("Error while loading last replay",e)
-		return None
 
-def play_replay(replay : Replay, step : int):
+def play_replay_step(replay : Replay, step : int):
 	global board
 	try:
 		hash = replay.boards_hash[step]
 		board.hashMapPieces = {}
 		for key in hash.keys():
-			# convert key to tuple (x,y)
 			x = int(key[1])
 			y = int(key[4])
 			json_value = json.loads(hash[key])
@@ -73,11 +88,60 @@ def play_replay(replay : Replay, step : int):
 			position = (json_value["position"][0] , json_value["position"][1])
 			color = PieceColor.RED if json_value["color"] == "Rosso" else PieceColor.BLACK
 			board.hashMapPieces[(x,y)] = Piece(position,color,is_dama)
+		if step > 0:
+			pygame.mixer.Sound.play(move_sound)
 	except Exception as e:
 		print("Error while loading replay",e)
 
 step_replay = 0
-last = load_last_replay()
+current_replay = load_last_replay()
+
+def switchReplayMode():
+	global viewing_replay, manual_step_replay, current_replay, step_replay
+	viewing_replay = not viewing_replay
+	if viewing_replay:
+		# se la cartella non esiste
+		if not os.path.exists(logger.base_path):
+			popUp("Info","Non ci sono partite salvate")
+			viewing_replay = False
+			return
+		# apri file browser con tkinter per scegliere il file
+		root = Tk()
+		root.withdraw()
+		root.filename =  filedialog.askopenfilename(initialdir = logger.base_path,title = "Seleziona il file della partita",filetypes = (("json files","*.json"),("all files","*.*")))
+		if root.filename:
+			replay_loaded = load_replay(root.filename)
+			if replay_loaded:
+				current_replay = replay_loaded
+				play_replay_step(current_replay,0)
+				pygame.mixer.Sound.play(draw_sound)
+			else:
+				popUp("Errore","Errore durante il caricamento della partita")
+				viewing_replay = False
+		else:
+			popUp("Operazione annullata","Nessuna partita selezionata")
+			viewing_replay = False
+	else:
+		resetGame()
+		step_replay	= 0
+	
+
+
+def stepForwardReplay():
+	global step_replay
+	step_replay+=1
+	if step_replay >= len(current_replay.boards_hash):
+		pygame.mixer.Sound.play(wrong_sound)
+		step_replay = len(current_replay.boards_hash)-1
+	play_replay_step(current_replay,step_replay)
+
+def stepBackwardReplay():
+	global step_replay
+	step_replay-=1
+	if step_replay < 0:
+		pygame.mixer.Sound.play(wrong_sound)
+		step_replay = 0
+	play_replay_step(current_replay,step_replay)
 
 def popUp(title,msg):
 	Tk().wm_withdraw() #to hide the main window
@@ -205,7 +269,7 @@ def drawTextGameStatus():
 
 	status_text_color = (255,255,255)
 	bg_status_color = (0,0,0)
-	text = normalText.render(f"Punteggio: ", True, status_text_color,bg_status_color)
+	text = normalText.render(f"Premi R per rivedere una partita: ", True, status_text_color,bg_status_color)
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*2)
 	canvas.blit(text, textRect)
@@ -241,6 +305,102 @@ def drawTextGameStatus():
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*5)
 	canvas.blit(text, textRect)
+
+def drawReplayUI():
+	text_x, text_y = 8*cell_width + (width -8*cell_width)//2, 35
+	
+	if step_replay == len(current_replay.boards_hash)-1:
+		textTurn = current_replay.status
+		textTurnBgColor = (200,0,0)
+		textTurnColor = (255,255,255) 
+	elif step_replay == 0:
+		textTurnBgColor = (255,255,255) 
+		textTurnColor = (0,0,0) 
+		textTurn = "Inizio partita"
+	else:
+		textTurnBgColor = (255,255,255) 
+		textTurnColor = (0,0,0) 
+		textTurn = f"Mossa N° {step_replay}"
+
+	
+	text = fontTurn.render(textTurn, True, textTurnColor, textTurnBgColor)
+	textRect = text.get_rect()
+	textRect.center = (text_x, text_y)
+	canvas.blit(text, textRect)
+
+	
+	timer_txt = f"Partita giocata il {current_replay.timestamp}"
+
+	text = normalText.render(timer_txt, True, textColor, (0,0,0))
+	textRect = text.get_rect()
+	textRect.center = (text_x, text_y + text_spacing)
+	canvas.blit(text, textRect)
+
+	status_text_color = (255,255,255)
+	bg_status_color = (0,0,0)
+	text = normalText.render(f"Durata: {datetime.timedelta(milliseconds=current_replay.duration_ms)}", True, status_text_color,bg_status_color)
+	textRect = text.get_rect()
+	textRect.center = (text_x, text_y + text_spacing*2)
+	canvas.blit(text, textRect)
+
+
+	if step_replay == len(current_replay.boards_hash)-1:
+		min_score = min(current_replay.red_score, current_replay.black_score)
+		max_score = max(current_replay.red_score, current_replay.black_score)
+		
+		score_txt_color = (220,220,0)
+		score_txt = f"{max_score} - {min_score}"
+		if current_replay.red_score > current_replay.black_score:
+			score_txt += " per il Rosso"
+		elif current_replay.red_score < current_replay.black_score:
+			score_txt += " per il Nero"
+		else:
+			score_txt += " Pari"	
+		text = normalText.render(score_txt, True, score_txt_color, (0,0,0))
+		textRect = text.get_rect()
+		textRect.center = (text_x, text_y + text_spacing*3)
+		canvas.blit(text, textRect)
+
+	
+	button_exit_replay.position = (text_x, text_y + text_spacing*4)
+	button_exit_replay.draw(canvas)
+
+	text = normalText.render(f"Premi M per mutare la musica", True, textColor, (0,0,0))
+	textRect = text.get_rect()
+	textRect.center = (text_x, text_y + text_spacing*5)
+	canvas.blit(text, textRect)
+
+	text_x = 8*cell_width + (width -8*cell_width)//2
+	text_y = height//2 + cell_width//2 +10
+	bg = (64,64,0)
+	pygame.draw.rect(canvas,bg,(8*cell_width +10, text_y - 30, width-(8*cell_width+20), height-text_y))
+	
+
+	
+	str_txt = "Clicca le frecce per andare avanti/indietro"
+	text = normalText.render(str_txt, True,(255,255,255) ,bg)
+	textRect = text.get_rect()
+	textRect.center = (text_x, text_y )
+	canvas.blit(text, textRect)
+
+	text_y+= text_spacing*2
+
+	arrow_h = 20 *8
+	arrow_w = 10 * 8
+	# draw left arrow
+	pygame.draw.polygon(canvas,(255,255,255),[(text_x-arrow_h,text_y),(text_x-arrow_w,text_y-arrow_w),(text_x-arrow_w,text_y+arrow_w)])
+	# draw right arrow
+	pygame.draw.polygon(canvas,(255,255,255),[(text_x+arrow_h,text_y),(text_x+arrow_w,text_y-arrow_w),(text_x+arrow_w,text_y+arrow_w)])
+
+	# check click on arrows
+	if pygame.mouse.get_pressed()[0]:
+		mouse_pos = pygame.mouse.get_pos()
+		if mouse_pos[0] > text_x-arrow_h and mouse_pos[0] < text_x-arrow_w and mouse_pos[1] > text_y-arrow_w and mouse_pos[1] < text_y+arrow_w:
+			stepBackwardReplay()
+			pygame.time.delay(200)
+		elif mouse_pos[0] > text_x+arrow_w and mouse_pos[0] < text_x+arrow_h and mouse_pos[1] > text_y-arrow_w and mouse_pos[1] < text_y+arrow_w:
+			stepForwardReplay()
+			pygame.time.delay(200)
 
 def drawExpBar(x,y):
 	w = (width - cell_width*8) - 40
@@ -382,6 +542,7 @@ assign_exp = False
 
 player = Player(player_name)
 
+button_exit_replay = myButton("Esci dal replay", (0,0), (0,100,0), (255,255,255), normalText,False,border_color=(255,255,255))
 button_reset = myButton("Ricomincia partita", (0,0), (0,100,0), (255,255,255), normalText,False,border_color=(255,255,255))
 button_enable_black_AI = myButton("Auto",(0,0), (100,100,0), (255,255,255), playerText,False,border_color=(255,255,255))
 
@@ -413,7 +574,7 @@ while not exit:
 		player.add_exp(board.black_score)
 	canvas.fill(bgColor)
 
-	if board.status == GameStatus.IN_PROGRESS:
+	if board.status == GameStatus.IN_PROGRESS and not viewing_replay:
 		if board.whoMoves() == PieceColor.RED and RED_AI_enabled:
 			# AI RED
 			move, was_dama = board.makeMoveRedAI()
@@ -439,7 +600,7 @@ while not exit:
 					pygame.mixer.Sound.play(dama_sound)
 			pygame.mixer.Sound.play(move_sound)
 			time_elapsed_ms += AI_delay_ms
-	elif auto_reset:
+	elif auto_reset and not viewing_replay:
 		pygame.time.delay(5000)
 		board.reset()
 		time_elapsed_ms = 0
@@ -467,30 +628,34 @@ while not exit:
 		if event.type == pygame.KEYDOWN:
 			if event.key == pygame.K_ESCAPE:
 				exit = True
-			if event.key == pygame.K_a:
-				play_replay(last,step_replay)
-				step_replay+=1
 			if event.key == pygame.K_r:
-				resetGame()
-				break
+				switchReplayMode()
+			if event.key == pygame.K_RIGHT and viewing_replay and manual_step_replay: 
+				stepForwardReplay()
+			if event.key == pygame.K_LEFT and viewing_replay and manual_step_replay:
+				stepBackwardReplay()
 			if event.key == pygame.K_m:
 				audio_enabled = not audio_enabled
 				if audio_enabled:
 					pygame.mixer.music.unpause()
 				else:
 					pygame.mixer.music.pause()
-		if event.type == pygame.MOUSEBUTTONDOWN and button_reset.mouse_over(pygame.mouse.get_pos()):
+		if event.type == pygame.MOUSEBUTTONDOWN and button_reset.mouse_over(pygame.mouse.get_pos()) and not viewing_replay:
 			resetGame()
 			break
 		
+		if event.type == pygame.MOUSEBUTTONDOWN and button_exit_replay.mouse_over(pygame.mouse.get_pos()) and viewing_replay:
+			switchReplayMode()
+			break
+
 		# clicked on button enable black AI
-		if not hide_button_enable_black_AI and event.type == pygame.MOUSEBUTTONUP and button_enable_black_AI.mouse_over(pygame.mouse.get_pos()):
+		if not hide_button_enable_black_AI and event.type == pygame.MOUSEBUTTONUP and button_enable_black_AI.mouse_over(pygame.mouse.get_pos()) and not viewing_replay:
 			BLACK_AI_enabled = not BLACK_AI_enabled
 			auto_reset = True if BLACK_AI_enabled else False
 			new_color = (0,200,0) if BLACK_AI_enabled else (100,100,0)
 			button_enable_black_AI.set_new_color(new_color)
 			
-		if (event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEBUTTONUP) and isPlayerTurn():
+		if (event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEBUTTONUP) and isPlayerTurn() and not viewing_replay:
 			pos = pygame.mouse.get_pos()
 
 			if board.status != GameStatus.IN_PROGRESS:
@@ -564,17 +729,22 @@ while not exit:
 			else:
 				pygame.draw.rect(canvas,evenCellColor,((i+start_x_board)*cell_width,j*cell_width,cell_width,cell_width))
 	drawPieces(board)
-	drawPreviousMove()
-	if selectedPiece and isPlayerTurn():
-		drawSelectedPieceOverMouse()
-		drawCircleAroundSelectedPiece()
-		drawMovesForSelectedPiece()
 	pygame.draw.rect(canvas,bgLogColor,(height,0,width-height,height))
+	
+	if not viewing_replay:
+		drawPreviousMove()
+		if selectedPiece and isPlayerTurn():
+			drawSelectedPieceOverMouse()
+			drawCircleAroundSelectedPiece()
+			drawMovesForSelectedPiece()
+		drawTextGameStatus()
 
-	drawTextGameStatus()
-	if isAIvsAI():
-		drawTextAutoplay()
+		if isAIvsAI():
+			drawTextAutoplay()
+			
+		else:
+			drawPlayerStats()
 	else:
-		drawPlayerStats()
+		drawReplayUI()
 	pygame.display.update()
 
