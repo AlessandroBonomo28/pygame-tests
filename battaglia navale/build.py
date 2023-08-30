@@ -1,7 +1,7 @@
 import os
 # runs the following command with os, produces the executable in dist folder
 
-name = "Battaglia navale"
+name = "Battaglia_navale"
 
 os.system(f"pyinstaller game.py --icon=icon.ico --name={name} -y")
 
