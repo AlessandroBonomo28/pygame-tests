@@ -1,9 +1,11 @@
 {
     "AI_delay_ms": 750,
+    "delay_move_replay": 250,
     "day_born": 3,
     "month_born": 9,
     "year_born": 1934,
     "player_name": "Pippo",
-    "hide_button_enable_black_AI": false,
+    "hide_button_enable_black_AI": true,
+    "auto_select_last_replay": true,
     "max_logs": 10
 }

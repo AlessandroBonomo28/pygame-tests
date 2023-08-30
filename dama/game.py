@@ -44,7 +44,6 @@ time_elapsed_ms = 0
 eat_streak_happening = False
 
 viewing_replay = False
-manual_step_replay = True
 
 logger = Logger()
 
@@ -97,7 +96,7 @@ step_replay = 0
 current_replay = load_last_replay()
 
 def switchReplayMode():
-	global viewing_replay, manual_step_replay, current_replay, step_replay
+	global viewing_replay, current_replay, step_replay
 	viewing_replay = not viewing_replay
 	if viewing_replay:
 		# se la cartella non esiste
@@ -105,6 +104,17 @@ def switchReplayMode():
 			popUp("Info","Non ci sono partite salvate")
 			viewing_replay = False
 			return
+		if auto_select_last_replay:
+			current_replay = load_last_replay()
+			if current_replay:
+				step_replay = 0
+				play_replay_step(current_replay,0)
+				pygame.mixer.Sound.play(draw_sound)
+				return
+			else:
+				popUp("Errore","Errore durante il caricamento dell'ultima partita")
+				viewing_replay = False
+				return
 		# apri file browser con tkinter per scegliere il file
 		root = Tk()
 		root.withdraw()
@@ -133,7 +143,8 @@ def stepForwardReplay():
 	if step_replay >= len(current_replay.boards_hash):
 		pygame.mixer.Sound.play(wrong_sound)
 		step_replay = len(current_replay.boards_hash)-1
-	play_replay_step(current_replay,step_replay)
+	else:
+		play_replay_step(current_replay,step_replay)
 
 def stepBackwardReplay():
 	global step_replay
@@ -141,7 +152,8 @@ def stepBackwardReplay():
 	if step_replay < 0:
 		pygame.mixer.Sound.play(wrong_sound)
 		step_replay = 0
-	play_replay_step(current_replay,step_replay)
+	else:
+		play_replay_step(current_replay,step_replay)
 
 def popUp(title,msg):
 	Tk().wm_withdraw() #to hide the main window
@@ -269,7 +281,8 @@ def drawTextGameStatus():
 
 	status_text_color = (255,255,255)
 	bg_status_color = (0,0,0)
-	text = normalText.render(f"Premi R per rivedere una partita: ", True, status_text_color,bg_status_color)
+	msg_replay = "Premi R per rivedere una partita" if not auto_select_last_replay else "Premi R per rivedere la partita"
+	text = normalText.render(msg_replay, True, status_text_color,bg_status_color)
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*2)
 	canvas.blit(text, textRect)
@@ -397,10 +410,10 @@ def drawReplayUI():
 		mouse_pos = pygame.mouse.get_pos()
 		if mouse_pos[0] > text_x-arrow_h and mouse_pos[0] < text_x-arrow_w and mouse_pos[1] > text_y-arrow_w and mouse_pos[1] < text_y+arrow_w:
 			stepBackwardReplay()
-			pygame.time.delay(200)
+			pygame.time.delay(delay_move_replay)
 		elif mouse_pos[0] > text_x+arrow_w and mouse_pos[0] < text_x+arrow_h and mouse_pos[1] > text_y-arrow_w and mouse_pos[1] < text_y+arrow_w:
 			stepForwardReplay()
-			pygame.time.delay(200)
+			pygame.time.delay(delay_move_replay)
 
 def drawExpBar(x,y):
 	w = (width - cell_width*8) - 40
@@ -524,14 +537,18 @@ try:
 		month_born = game_settings["month_born"]
 		year_born = game_settings["year_born"]
 		hide_button_enable_black_AI = game_settings["hide_button_enable_black_AI"]
+		auto_select_last_replay = game_settings["auto_select_last_replay"]
 		logger.max_logs = game_settings["max_logs"]
+		delay_move_replay = game_settings["delay_move_replay"]
 except:
+	delay_move_replay = 500
 	AI_delay_ms = 500
 	player_name = "Pippo"
 	day_born = 3
 	month_born = 9
 	year_born = 1934
 	hide_button_enable_black_AI = True
+	auto_select_last_replay = True
 	logger.max_logs = 10
 
 exit = False
@@ -630,9 +647,9 @@ while not exit:
 				exit = True
 			if event.key == pygame.K_r:
 				switchReplayMode()
-			if event.key == pygame.K_RIGHT and viewing_replay and manual_step_replay: 
+			if event.key == pygame.K_RIGHT and viewing_replay: 
 				stepForwardReplay()
-			if event.key == pygame.K_LEFT and viewing_replay and manual_step_replay:
+			if event.key == pygame.K_LEFT and viewing_replay:
 				stepBackwardReplay()
 			if event.key == pygame.K_m:
 				audio_enabled = not audio_enabled
