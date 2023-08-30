@@ -12,18 +12,19 @@ pygame.init()
 
 width = pygame.display.Info().current_w
 height = pygame.display.Info().current_h - pygame.display.Info().current_h//10
-
+stroke_divider = 5
+color_divider = (0,0,0)
 cell_width = height/Board.width
 start_x_board = 0
 start_y_board = 0
 text_spacing = cell_width*0.7
 
 bgColor = (255,255,255)
-evenCellColor = (128,128,128)#(205,133,63)
-oddCellColor = (255,255,255)
+evenCellColor = (0,49,83)
+oddCellColor = (0,33,71)
 bgLogColor = (0,0,0)
 redPiecesColor = (255,0,0)
-blackPiecesColor = (0,0,0)
+blackPiecesColor = (200,200,200)
 colorSelectedPiece = (0,255,0)
 suggestedMoveColor = (255,128,128)
 
@@ -89,7 +90,9 @@ def drawPieces(board : Board):
 		prev_position = None
 		for position in piece.positions:
 			if prev_position:
-				pygame.draw.line(canvas,blackPiecesColor,((prev_position[0]+0.5)*cell_width,(prev_position[1]+0.5)*cell_width),((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width),selectedPieceStroke)
+				pygame.draw.line(canvas,blackPiecesColor,((prev_position[0]+0.5)*cell_width,(prev_position[1]+0.5)*cell_width),((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width),math.ceil(piecesRadius*2.5))
+			# outline
+			#pygame.draw.circle(canvas,(0,0,0),((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width), piecesRadius+5)			
 			pygame.draw.circle(canvas,blackPiecesColor,((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width), piecesRadius)		
 			prev_position = position
 	#  red
@@ -98,27 +101,35 @@ def drawPieces(board : Board):
 		prev_position = None
 		for position in piece.positions:
 			if prev_position:
-				pygame.draw.line(canvas,redPiecesColor,((prev_position[0]+0.5)*cell_width,(prev_position[1]+0.5)*cell_width),((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width),selectedPieceStroke)
+				pygame.draw.line(canvas,redPiecesColor,((prev_position[0]+0.5)*cell_width,(prev_position[1]+0.5)*cell_width),((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width),math.ceil(piecesRadius*2.5))
+			# outline
+			#pygame.draw.circle(canvas,(0,0,0),((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width), piecesRadius+5)
 			pygame.draw.circle(canvas,redPiecesColor,((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width), piecesRadius)		
 			prev_position = position
-		
+
 def drawBoard(board :Board):
 	for i in range(board.width):
 		for j in range(board.height):
 			if (i+j)%2 == 0:
-				pygame.draw.rect(canvas,oddCellColor,((start_x_board+i)*cell_width,j*cell_width,cell_width,cell_width))
+				x1 = (start_x_board+i)*cell_width
+				y1 = j*cell_width
+				pygame.draw.rect(canvas,oddCellColor,(x1,y1,cell_width+1,cell_width+1))
 			else:
-				pygame.draw.rect(canvas,evenCellColor,((i+start_x_board)*cell_width,j*cell_width,cell_width,cell_width))
-
+				x1 = (i+start_x_board)*cell_width
+				y1 = j*cell_width
+				pygame.draw.rect(canvas,evenCellColor,(x1,y1,cell_width+1,cell_width+1))
+	# draw line that divides half board up and down
+	half_h = Board.height*cell_width // 2
+	pygame.draw.line(canvas,color_divider,(0,half_h),(Board.width*cell_width,half_h),stroke_divider)
 textColor = (255,255,255)
 def drawTextGameStatus():
 	text_x, text_y = Board.height*cell_width + (width -Board.height*cell_width)//2, 35
 	textTurnColor = (0,0,0) if board.whoMoves() == PieceColor.RED else (255,255,255)
 	textTurnBgColor = (255,255,255) if board.whoMoves() == PieceColor.RED else (255,0,0)
 	if board.whoMoves() == PieceColor.BLACK:
-		textTurn = f"Turno {board.turn_count+1}: Muovi il Nero"
+		textTurn = f"Turno {board.turn_count+1}: Colpisci il nemico ! "
 	else: 
-		textTurn = f"Turno {board.turn_count+1}: il {board.whoMoves()} muove"
+		textTurn = f"Turno {board.turn_count+1}: il {board.whoMoves()} colpisce! "
 
 	if board.status != GameStatus.IN_PROGRESS: 
 		textTurn = "Hai perso!" if board.status == GameStatus.RED_WINS else "Hai vinto!" if board.status == GameStatus.BLACK_WINS else "Patta!"
@@ -303,7 +314,8 @@ for i in range(2):
 			#black_pieces.append(Piece([(Board.height-1-j,Board.height-1-i)],PieceColor.BLACK))
 
 black_pieces.append(Piece([(0,7),(0,6)],PieceColor.BLACK))
-black_pieces.append(Piece([(2,7),(2,6)],PieceColor.BLACK))
+black_pieces.append(Piece([(2,11),(2,10),(2,9)],PieceColor.BLACK))
+black_pieces.append(Piece([(5,10),(6,10),(7,10)],PieceColor.BLACK))
 board = Board(red_pieces,black_pieces)
 
 now = datetime.datetime.now()
