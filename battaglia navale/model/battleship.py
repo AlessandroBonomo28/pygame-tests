@@ -73,6 +73,8 @@ class Board:
     hash_miss : dict[tuple, bool]
     red_score : int 
     black_score : int
+    red_pieces_alive : int
+    black_pieces_alive : int
     def __init__(self, pieces_red : list[Piece] = [],pieces_black : list[Piece] = []):
         self.black_score = 0
         self.red_score = 0
@@ -82,6 +84,8 @@ class Board:
         self.hash_miss = {}
         self.moves = []
         self.turn_count = 0
+        self.red_pieces_alive = len(self.red_pieces)
+        self.black_pieces_alive = len(self.black_pieces)
         self.__updateStatus()
 
     
@@ -128,6 +132,8 @@ class Board:
             self.status = GameStatus.RED_WINS
         else:
             self.status = GameStatus.IN_PROGRESS
+        self.red_pieces_alive = red_pieces_alive
+        self.black_pieces_alive = black_pieces_alive
 
     def makeMove(self, move : Move):
         who_moves = "Red" if self.whoMoves() == PieceColor.RED else "Black"
@@ -135,7 +141,6 @@ class Board:
         if move.piece_hit and move.piece_hit.isAlreadyHit(move.position_hit):
             print("Already hit")
             self.turn_count += 1
-            return
         elif move.did_hit():
             self.__mark_hit(move)
         else:
@@ -219,3 +224,11 @@ class Board:
         self.makeMove(move)
         print(f"AI move: {move}")
         return move
+
+class Fleet:
+    pieces : list[Piece]
+    def __init__(self, pieces : list[Piece] = []):
+        self.pieces = pieces
+    
+    def generate():
+        pass
