@@ -97,6 +97,8 @@ def drawPieces(board : Board):
 			prev_position = position
 	#  red
 	for piece in board.red_pieces:
+		if not piece.is_dead: # disegna solo i pezzi vivi
+			continue
 		# draw line that connects all positions
 		prev_position = None
 		for position in piece.positions:
@@ -106,6 +108,40 @@ def drawPieces(board : Board):
 			#pygame.draw.circle(canvas,(0,0,0),((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width), piecesRadius+5)
 			pygame.draw.circle(canvas,redPiecesColor,((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width), piecesRadius)		
 			prev_position = position
+
+def drawHits(board : Board):
+	# cycle over hit hashmap
+	for position in board.hash_hits:
+		# draw cross
+		x = (position[0]+0.5)*cell_width
+		y = (position[1]+0.5)*cell_width
+		pygame.draw.line(canvas,(0,0,0),(x-piecesRadius,y-piecesRadius),(x+piecesRadius,y+piecesRadius),5)
+		pygame.draw.line(canvas,(0,0,0),(x-piecesRadius,y+piecesRadius),(x+piecesRadius,y-piecesRadius),5)
+
+def drawLastAImiss(board : Board):
+	#board.moves
+	#pick last position of AI
+	if len(board.moves) == 0:
+		return
+	
+	if len(board.moves) == 1 and board.moves[0].actor == PieceColor.BLACK:
+		return
+	
+	
+	# get last red move
+	for i in range(len(board.moves)-1,-1,-1):
+		if board.moves[i].actor == PieceColor.RED:
+			last_move = board.moves[i]
+			break
+
+	
+	if last_move.actor == PieceColor.RED:
+		# draw cross
+		x = (last_move.position_hit[0]+0.5)*cell_width
+		y = (last_move.position_hit[1]+0.5)*cell_width
+		pygame.draw.line(canvas,(255,0,0),(x-piecesRadius,y-piecesRadius),(x+piecesRadius,y+piecesRadius),5)
+		pygame.draw.line(canvas,(255,0,0),(x-piecesRadius,y+piecesRadius),(x+piecesRadius,y-piecesRadius),5)
+
 
 def drawBoard(board :Board):
 	for i in range(board.width):
@@ -240,11 +276,6 @@ def drawPreviousMove():
 	if previous_move:
 		# draw arrow
 		pygame.draw.line(canvas,(0,0,255),((previous_move.position_from[0]+0.5)*cell_width,(previous_move.position_from[1]+0.5)*cell_width),((previous_move.position_to[0]+0.5)*cell_width,(previous_move.position_to[1]+0.5)*cell_width),5)
-	
-def getMoveIfAviable(position):
-	
-	return None
-
 
 
 audio_enabled = True
@@ -338,7 +369,8 @@ while not exit:
 	if board.status == GameStatus.IN_PROGRESS:
 		if board.whoMoves() == PieceColor.RED:
 			# AI RED
-			board.makeMoveRedAI()
+			print("AI RED moves")
+			board.makeMoveRedAI(board)
 			pygame.time.delay(AI_delay_ms)
 			updateGamePostMove()
 			pygame.mixer.Sound.play(move_sound)
@@ -388,12 +420,20 @@ while not exit:
 			
 			if event.type == pygame.MOUSEBUTTONUP:
 				pass
-			elif event.type == pygame.MOUSEBUTTONDOWN:
-				move = getMoveIfAviable(cellPosition)
-				print("evaluating")
-
-				if move:
-					print("move found")
+			elif event.type == pygame.MOUSEBUTTONDOWN and board.getPieceByPosition:
+				
+				#piece_hit = board.getPieceByPosition(cellPosition)
+				if not board.isInsideBounds(cellPosition):
+					print("invalid cell to hit")
+					break
+				
+				if board.getCellColor(cellPosition) == PieceColor.RED:
+					piece_to_hit = board.getPieceByPosition(cellPosition)
+					if piece_to_hit and piece_to_hit.color != board.whoMoves():
+						print("piece to hit:",piece_to_hit)
+						move = Move(board.turn_count,PieceColor.BLACK,cellPosition,piece_to_hit,"hitted")
+					else:
+						move = Move(board.turn_count,PieceColor.BLACK,cellPosition,None,"missed")
 					board.makeMove(move)
 					pygame.mixer.Sound.play(move_sound)
 					updateGamePostMove()
@@ -401,11 +441,11 @@ while not exit:
 
 	drawBoard(board)		
 	drawPieces(board)
+	drawHits(board)
+	drawLastAImiss(board)
 	# bg of right part of screen
 	pygame.draw.rect(canvas,bgLogColor,(height,0,width-height,height))
 	
-	
-
 	drawTextGameStatus()
 	drawPlayerStats()
 	

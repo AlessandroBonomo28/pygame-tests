@@ -22,7 +22,13 @@ class Piece:
         self.is_dead = False
         self.hits = []
 
-    
+    def hit(self, position):
+        self.hits.append(position)
+        if len(self.hits) == len(self.positions):
+            self.is_dead = True
+
+    def isAlreadyHit(self, position):
+        return position in self.hits
 
     def __str__(self):
         col = "Red ship" if self.color == PieceColor.RED else "Black ship"
@@ -42,7 +48,7 @@ class Move:
         self.message = message
     
     def did_hit(self):
-        return self.piece_hit is not None
+        return self.piece_hit != None
 
     def __str__(self):
         if self.did_hit():
@@ -94,12 +100,15 @@ class Board:
     
     def getPieceByPosition(self,position) -> Piece | None:
         try:
-            for piece in self.red_pieces.extend(self.black_pieces):
+            for piece in self.red_pieces:
+                if position in piece.positions:
+                    return piece
+            for piece in self.black_pieces:
                 if position in piece.positions:
                     return piece
         except KeyError:
             return None
-    
+
     def whoMoves(self) -> PieceColor:
         return PieceColor.BLACK if self.turn_count % 2 == 0 else PieceColor.RED
 
@@ -120,29 +129,20 @@ class Board:
         else:
             self.status = GameStatus.IN_PROGRESS
 
-    def makeMove(self, move : Move, append_hashmap : bool = True):
+    def makeMove(self, move : Move):
         who_moves = "Red" if self.whoMoves() == PieceColor.RED else "Black"
         print(f"{who_moves} moves {move}")
-        if move.did_hit:
+        if move.piece_hit and move.piece_hit.isAlreadyHit(move.position_hit):
+            print("Already hit")
+            self.turn_count += 1
+            return
+        elif move.did_hit():
             self.__mark_hit(move)
         else:
             self.__mark_miss(move)
+            self.turn_count += 1
         
         self.moves.append(move)
-        if append_hashmap:
-            self.append_hashmap_copy(self.hashMapPieces)
-        
-        possible_moves = move.piece.evaluateMovePositions(self)
-        # filter only eat moves
-        possible_eat_moves = list(filter(lambda m: m.does_eat, possible_moves)) 
-        
-        if move.does_eat and len(possible_eat_moves) > 0:
-            self.turn_count += 0
-            # auto eat
-            #if len(possible_eat_moves) == 1:
-            #    self.makeMove(possible_eat_moves[0])
-        else:
-            self.turn_count += 1
         self.__updateStatus()
 
     def increment_score(self,move : Move):
@@ -153,23 +153,38 @@ class Board:
 
     def __mark_hit(self, move : Move):
         self.hash_hits[move.position_hit] = move.piece_hit
+        move.piece_hit.hit(move.position_hit)
         self.increment_score(move)
             
 
     def __mark_miss(self, move : Move):
+        print(f"Missed at {move.position_hit}")
         self.hash_miss[move.position_hit] = True
 
-    
+    def getCellColor(self, position) -> PieceColor | None:
+        if not self.isInsideBounds(position):
+            return None
+        if position[1] >= self.height//2:
+            return PieceColor.BLACK
+        else:
+            return PieceColor.RED
         
     def isInsideBounds(self, position):
         return position[0] >= 0 and position[0] < self.width and position[1] >= 0 and position[1] < self.height
     
-    def makeMoveRedAI(self):
-        return self.__makeMoveAI()
     
-    def __makeMoveAI(self):
+    def makeMoveRedAI(self,board):
+        max_try = 100
+        try_count = 0
+        exit_generator = False
         # pick random position inside board
-        random_position = (random.randint(0,self.width-1),random.randint(0,self.height-1))
-        move = Move(self.turn_count, PieceColor.RED, random_position, False, "random move AI")
+        while try_count < max_try and not exit_generator:
+            random_position = (random.randint(0,self.width-1),random.randint(self.height//2,self.height-1))
+            piece_hit = board.getPieceByPosition(random_position)
+            if random_position not in board.hash_miss.keys():
+                exit_generator = True
+            try_count += 1
+        move = Move(self.turn_count, PieceColor.RED, random_position, piece_hit, "random move AI")
         self.makeMove(move)
+        print(f"AI move: {move}")
         return move
