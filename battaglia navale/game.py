@@ -266,7 +266,7 @@ def drawPlayerStats():
 	textRect.center = (text_x, text_y+ text_spacing*2.8)
 	canvas.blit(text, textRect)
 
-	text = playerText.render(f"{player.wins} Vinte, {player.losses} Perse, {player.draws} Patte", True, colorPlayerTxt,bgColorRect)
+	text = playerText.render(f"{player.wins} Vinte, {player.losses} Perse", True, colorPlayerTxt,bgColorRect)
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y+ text_spacing*3.5)
 	canvas.blit(text, textRect)
