@@ -172,17 +172,48 @@ class Board:
     def isInsideBounds(self, position):
         return position[0] >= 0 and position[0] < self.width and position[1] >= 0 and position[1] < self.height
     
+    def __get_black_hits_centroid(self):
+        x = 0
+        y = 0
+        count = 0
+        for position in self.hash_hits.keys():
+            if self.hash_hits[position].color == PieceColor.BLACK:
+                x += position[0]
+                y += position[1]
+                count += 1
+        if count == 0:
+            return (self.width//2,self.height//2)
+        return (x/count,y/count)
     
+    def __squared_distance(self, position1, position2):
+        return (position1[0]-position2[0])**2 + (position1[1]-position2[1])**2
+    
+   
+    def __event_probability(self, percentage : float) -> bool:
+        """
+        Event probability is a function that returns true or false based on a percentage parameter between 0 and 1
+        """
+        return random.random() < percentage
+
     def makeMoveRedAI(self,board):
         max_try = 100
         try_count = 0
-        exit_generator = False
         # pick random position inside board
-        while try_count < max_try and not exit_generator:
+        while try_count < max_try:
             random_position = (random.randint(0,self.width-1),random.randint(self.height//2,self.height-1))
             piece_hit = board.getPieceByPosition(random_position)
-            if random_position not in board.hash_miss.keys():
-                exit_generator = True
+            
+            never_hit_before : bool = random_position not in board.hash_miss.keys() and \
+                                      random_position not in board.hash_hits.keys()
+            
+            distance_trigger = 6
+            probability_trigger = 0.75
+            centroid_black = self.__get_black_hits_centroid()
+            near_other_black_boats : bool = self.__squared_distance(random_position,centroid_black) < distance_trigger**2
+            
+            if never_hit_before or \
+                (never_hit_before and self.__event_probability(probability_trigger) and near_other_black_boats):
+                break
             try_count += 1
         move = Move(self.turn_count, PieceColor.RED, random_position, piece_hit, "random move AI")
         self.makeMove(move)
