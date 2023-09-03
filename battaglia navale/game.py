@@ -407,9 +407,10 @@ for i in range(2):
 	for j in range(Board.width):
 		if (i+j)%2 == 0:
 			red_pieces.append(Piece([(j,i)],PieceColor.RED))
-			#black_pieces.append(Piece([(Board.height-1-j,Board.height-1-i)],PieceColor.BLACK))
 
-black_pieces.append(Piece([(0,7),(0,6)],PieceColor.BLACK))
+p1 = Piece([(0,7),(0,6)],PieceColor.BLACK)
+p1.rotate(90)
+black_pieces.append(p1)
 black_pieces.append(Piece([(2,11),(2,10),(2,9)],PieceColor.BLACK))
 black_pieces.append(Piece([(5,10),(6,10),(7,10)],PieceColor.BLACK))
 board = Board(red_pieces,black_pieces)

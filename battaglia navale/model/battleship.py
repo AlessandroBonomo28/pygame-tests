@@ -1,4 +1,4 @@
-import random, datetime
+import random, math
 
 class PieceColor:
     RED = "Rosso"
@@ -27,12 +27,32 @@ class Piece:
         if len(self.hits) == len(self.positions):
             self.is_dead = True
 
+    def __deg2rad(self,degrees):
+        return degrees * math.pi / 180
+    
+    def rotate(self,degrees):
+        x = self.positions[0][0]
+        y = self.positions[0][1]
+        rad_angle = self.__deg2rad(degrees)
+        new_positions = []
+        for position in self.positions:
+            dx = position[0] - x
+            dy = position[1] - y
+            new_dx = dx * math.cos(rad_angle) - dy * math.sin(rad_angle)
+            new_dy = dx * math.sin(rad_angle) + dy * math.cos(rad_angle)
+            new_positions.append((x+new_dx,y+new_dy))
+        self.positions = new_positions
+
     def isAlreadyHit(self, position):
         return position in self.hits
 
     def __str__(self):
         col = "Red ship" if self.color == PieceColor.RED else "Black ship"
         return col+  str(self.positions) + " Is dead: " + str(self.is_dead)
+
+    def reset(self):
+        self.is_dead = False
+        self.hits = []
 
 class Move:
     turn : int

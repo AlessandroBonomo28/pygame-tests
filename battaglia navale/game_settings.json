@@ -1,7 +1,8 @@
 {
     "AI_delay_ms": 750,
-    "day_born": 3,
+    "day_born": 4,
     "month_born": 9,
     "year_born": 1934,
-    "player_name": "Pippo"
+    "player_name": "Pippo",
+    "show_only_last_miss" : true
 }
