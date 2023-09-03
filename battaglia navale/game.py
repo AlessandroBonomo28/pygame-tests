@@ -189,7 +189,10 @@ def drawAim(board : Board):
 			txt_cell += chr(ord('A')+round(cell[1]))+str(round(cell[0]+1))
 			text = normalText.render(txt_cell, True, (255,255,255), (0,0,0))
 			textRect = text.get_rect()
-			textRect.center = (mouse_pos[0], mouse_pos[1] - 40)
+			if mouse_pos[1] < cell_width:
+				textRect.center = (mouse_pos[0], mouse_pos[1] + 40)
+			else:
+				textRect.center = (mouse_pos[0], mouse_pos[1] - 40)
 			canvas.blit(text, textRect)
 		elif board.isInsideBounds(cell) and board.getCellColor(cell) == PieceColor.BLACK:
 			# draw text Questa è la tua flotta
