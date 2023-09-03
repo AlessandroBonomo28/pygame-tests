@@ -38,8 +38,8 @@ class Piece:
         for position in self.positions:
             dx = position[0] - x
             dy = position[1] - y
-            new_dx = dx * math.cos(rad_angle) - dy * math.sin(rad_angle)
-            new_dy = dx * math.sin(rad_angle) + dy * math.cos(rad_angle)
+            new_dx = round(dx * math.cos(rad_angle) - dy * math.sin(rad_angle))
+            new_dy = round(dx * math.sin(rad_angle) + dy * math.cos(rad_angle))
             new_positions.append((x+new_dx,y+new_dy))
         self.positions = new_positions
 
@@ -83,8 +83,8 @@ class Move:
 class Board:
     __score_multiplier = 1
     status : GameStatus = GameStatus.IN_PROGRESS
-    height : int = 12
-    width : int = 12
+    height : int = 14
+    width : int = 14
     turn_count : int
     moves : list[Move]
     red_pieces : list[Piece]
@@ -110,18 +110,41 @@ class Board:
 
     
     def reset(self):
-        black_pieces = []
-        red_pieces = []
-        for i in range(2):
-            for j in range(Board.width):
-                if (i+j)%2 == 0:
-                    red_pieces.append(Piece([(j,i)],PieceColor.RED))
-                    black_pieces.append(Piece([(Board.height-1-j,Board.height-1-i)],PieceColor.BLACK))
+        red_pieces = Fleet.generate(PieceColor.RED)
+        black_pieces = Fleet.generate(PieceColor.BLACK)
         self.__init__(red_pieces,black_pieces)
 
     def get_multiplier(self):
         return self.__score_multiplier
     
+    def randomPlace(self,piece)-> bool:
+        max_try = 10000
+        try_count = 0
+        rotations = [0,90,180,270]
+        piece.rotate(random.choice(rotations))
+        while try_count < max_try:
+            add_x = random.randint(-self.width-1,self.width-1)
+            add_y = random.randint(-self.height//2,self.height//2)
+            valid = True
+            for position in piece.positions:
+                x = position[0] + add_x
+                y = position[1] + add_y
+
+                wrong_side = (y < self.height//2 and piece.color == PieceColor.BLACK) or \
+                                (y >= self.height//2 and piece.color == PieceColor.RED)
+                piece_at_position = self.getPieceByPosition((x,y))
+                free_position = piece_at_position == None or piece_at_position == piece
+                if not self.isInsideBounds((x,y)) or wrong_side or not free_position:
+                    valid = False
+                    break
+            if valid:
+                for position in piece.positions:
+                    p = (position[0] + add_x, position[1] + add_y)
+                    piece.positions[piece.positions.index(position)] = p
+                return True
+            try_count +=1
+        return False
+
     def getPieceByPosition(self,position) -> Piece | None:
         try:
             for piece in self.red_pieces:
@@ -219,8 +242,23 @@ class Board:
         Event probability is a function that returns true or false based on a percentage parameter between 0 and 1
         """
         return random.random() < percentage
-
+    
+    def __get_move_that_hits(self,board) -> Move:
+        for position in board.black_pieces:
+                if not position.is_dead:
+                    for coord in position.positions:
+                        if coord not in board.hash_hits.keys():
+                            move = Move(self.turn_count, PieceColor.RED, coord, position, "random move AI")
+                            self.makeMove(move)
+                            return move
+        return None
     def makeMoveRedAI(self,board):
+        luck = min(0.05 + self.turn_count/300, 0.75)
+        if self.__event_probability(luck):
+            move = self.__get_move_that_hits(board)
+            if move != None:
+                return move
+
         max_try = 100
         try_count = 0
         # pick random position inside board
@@ -237,7 +275,8 @@ class Board:
             near_other_black_boats : bool = self.__squared_distance(random_position,centroid_black) < distance_trigger**2
             
             if never_hit_before or \
-                (never_hit_before and self.__event_probability(probability_trigger) and near_other_black_boats):
+                (never_hit_before and self.__event_probability(probability_trigger) \
+                 and near_other_black_boats):
                 break
             try_count += 1
         move = Move(self.turn_count, PieceColor.RED, random_position, piece_hit, "random move AI")
@@ -246,9 +285,44 @@ class Board:
         return move
 
 class Fleet:
-    pieces : list[Piece]
-    def __init__(self, pieces : list[Piece] = []):
-        self.pieces = pieces
     
-    def generate():
-        pass
+    @staticmethod
+    def get_default_black_fleet() -> list[Piece]:
+        color_fleet = PieceColor.BLACK
+        gommone_1 = Piece([(0,0 + Board.height//2),(0,1 + Board.height//2)],color_fleet)
+        gommone_2 = Piece([(1,0 + Board.height//2),(1,1 + Board.height//2)],color_fleet)
+
+        bombardiere = Piece([(2,0 + Board.height//2),(2,1 + Board.height//2),(2,2 + Board.height//2),(2,3 + Board.height//2)],color_fleet)
+        portaerei = Piece([(3,0 + Board.height//2),(3,1 + Board.height//2),(3,2 + Board.height//2),(3,3 + Board.height//2),(3,4 + Board.height//2)],color_fleet)
+        nave_assalto_1 = Piece([(4,0 + Board.height//2),(4,1 + Board.height//2),(4,2 + Board.height//2)],color_fleet)
+        nave_assalto_2 = Piece([(5,0 + Board.height//2),(5,1 + Board.height//2),(5,2 + Board.height//2)],color_fleet)
+        return [gommone_1,gommone_2,bombardiere,portaerei,nave_assalto_1,nave_assalto_2]
+    
+    @staticmethod
+    def get_default_red_fleet() -> list[Piece]:
+        color_fleet = PieceColor.RED
+        gommone_1 = Piece([(0,0),(0,1)],color_fleet)
+        gommone_2 = Piece([(1,0),(1,1)],color_fleet)
+
+        bombardiere = Piece([(2,0),(2,1),(2,2),(2,3)],color_fleet)
+        portaerei = Piece([(3,0),(3,1),(3,2),(3,3),(3,4)],color_fleet)
+        nave_assalto_1 = Piece([(4,0),(4,1),(4,2)],color_fleet)
+        nave_assalto_2 = Piece([(5,0),(5,1),(5,2)],color_fleet)
+        return [gommone_1,gommone_2,bombardiere,portaerei,nave_assalto_1,nave_assalto_2]
+
+    @staticmethod
+    def generate(color_fleet : PieceColor) -> list[Piece]:
+        fleet = Fleet.get_default_black_fleet() if color_fleet == PieceColor.BLACK else Fleet.get_default_red_fleet()
+        if color_fleet == PieceColor.BLACK:
+            test_board = Board([],fleet)
+        else:
+            test_board = Board(fleet,[])
+
+        for piece in fleet:
+            placed = test_board.randomPlace(piece)
+            if not placed:
+                print("Could not place piece, loading default fleet")
+                return Fleet.get_default_black_fleet() if color_fleet == PieceColor.BLACK else Fleet.get_default_red_fleet()
+
+        return test_board.black_pieces if color_fleet == PieceColor.BLACK else test_board.red_pieces          
+        

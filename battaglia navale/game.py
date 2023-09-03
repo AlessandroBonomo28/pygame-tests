@@ -91,21 +91,18 @@ def drawPieces(board : Board):
 		for position in piece.positions:
 			if prev_position:
 				pygame.draw.line(canvas,blackPiecesColor,((prev_position[0]+0.5)*cell_width,(prev_position[1]+0.5)*cell_width),((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width),math.ceil(piecesRadius*2.5))
-			# outline
-			#pygame.draw.circle(canvas,(0,0,0),((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width), piecesRadius+5)			
+			
 			pygame.draw.circle(canvas,blackPiecesColor,((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width), piecesRadius)		
 			prev_position = position
 	#  red
 	for piece in board.red_pieces:
 		if not piece.is_dead: # disegna solo i pezzi vivi
 			continue
-		# draw line that connects all positions
 		prev_position = None
 		for position in piece.positions:
 			if prev_position:
 				pygame.draw.line(canvas,redPiecesColor,((prev_position[0]+0.5)*cell_width,(prev_position[1]+0.5)*cell_width),((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width),math.ceil(piecesRadius*2.5))
-			# outline
-			#pygame.draw.circle(canvas,(0,0,0),((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width), piecesRadius+5)
+			
 			pygame.draw.circle(canvas,redPiecesColor,((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width), piecesRadius)		
 			prev_position = position
 
@@ -122,7 +119,6 @@ def drawHits(board : Board):
 		pygame.draw.line(canvas,color,(x-piecesRadius,y+piecesRadius),(x+piecesRadius,y-piecesRadius),7)
 
 def drawLastAImiss(board : Board):
-	#board.moves
 	#pick last position of AI
 	if len(board.moves) == 0:
 		return
@@ -147,7 +143,6 @@ def drawLastAImiss(board : Board):
 
 
 def drawYourLastMiss(board : Board):
-	#board.moves
 	global ticksLastBlinkSelector
 	if len(board.moves) == 0:
 		return
@@ -403,16 +398,22 @@ button_reset = myButton("Ricomincia partita", (0,0), (0,100,0), (255,255,255), n
 # init board
 black_pieces = []
 red_pieces = []
+"""
 for i in range(2):
 	for j in range(Board.width):
 		if (i+j)%2 == 0:
 			red_pieces.append(Piece([(j,i)],PieceColor.RED))
 
-p1 = Piece([(0,7),(0,6)],PieceColor.BLACK)
-p1.rotate(90)
-black_pieces.append(p1)
+
+
+gommone_black = Piece([(0,7),(0,6)],PieceColor.BLACK)
+gommone_black.rotate(90)
+black_pieces.append(gommone_black)
 black_pieces.append(Piece([(2,11),(2,10),(2,9)],PieceColor.BLACK))
 black_pieces.append(Piece([(5,10),(6,10),(7,10)],PieceColor.BLACK))
+"""
+red_pieces = Fleet.generate(PieceColor.RED)
+black_pieces = Fleet.generate(PieceColor.BLACK)
 board = Board(red_pieces,black_pieces)
 
 now = datetime.datetime.now()
@@ -497,7 +498,7 @@ while not exit:
 				
 				if board.getCellColor(cellPosition) == PieceColor.RED:
 					piece_to_hit = board.getPieceByPosition(cellPosition)
-					if piece_to_hit and piece_to_hit.color != board.whoMoves():
+					if piece_to_hit != None and piece_to_hit.color != board.whoMoves():
 						print("piece to hit:",piece_to_hit)
 						move = Move(board.turn_count,PieceColor.BLACK,cellPosition,piece_to_hit,"hitted")
 					else:
