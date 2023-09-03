@@ -183,13 +183,32 @@ def drawAim(board : Board):
 			# draw single cross vertical horizontal
 			pygame.draw.line(canvas,aim_color,(x-piecesRadius,y),(x+piecesRadius,y),3)
 			pygame.draw.line(canvas,aim_color,(x,y-piecesRadius),(x,y+piecesRadius),3)
+
+			# draw cell number
+			txt_cell = "Casella "
+			txt_cell += chr(ord('A')+round(cell[1]))+str(round(cell[0]+1))
+			text = normalText.render(txt_cell, True, (255,255,255), (0,0,0))
+			textRect = text.get_rect()
+			textRect.center = (mouse_pos[0], mouse_pos[1] - 40)
+			canvas.blit(text, textRect)
 		elif board.isInsideBounds(cell) and board.getCellColor(cell) == PieceColor.BLACK:
 			# draw text Questa è la tua flotta
 			text = normalText.render("Questa è la tua flotta!", True, (255,255,255), (0,0,0))
 			textRect = text.get_rect()
 			textRect.center = (mouse_pos[0], mouse_pos[1] - 30)
 			canvas.blit(text, textRect)
-			
+
+def drawCellNumbers(board : Board):
+	for j in range(board.height//2):
+		for i in range(board.width):
+			# txt cell es A1,B1
+			txt_cell = chr(ord('A')+j)+str(i+1)
+			color = oddCellColor if (i+j)%2 == 0 else evenCellColor
+			text = normalText.render(txt_cell, True, (255,255,255,128), color)
+			textRect = text.get_rect()
+			textRect.center = ((i+0.5)*cell_width, (j+0.5)*cell_width)
+			canvas.blit(text, textRect)
+
 def drawBoard(board :Board):
 	for i in range(board.width):
 		for j in range(board.height):
@@ -395,23 +414,7 @@ player = Player(player_name)
 
 button_reset = myButton("Ricomincia partita", (0,0), (0,100,0), (255,255,255), normalText,False,border_color=(255,255,255))
 
-# init board
-black_pieces = []
-red_pieces = []
-"""
-for i in range(2):
-	for j in range(Board.width):
-		if (i+j)%2 == 0:
-			red_pieces.append(Piece([(j,i)],PieceColor.RED))
 
-
-
-gommone_black = Piece([(0,7),(0,6)],PieceColor.BLACK)
-gommone_black.rotate(90)
-black_pieces.append(gommone_black)
-black_pieces.append(Piece([(2,11),(2,10),(2,9)],PieceColor.BLACK))
-black_pieces.append(Piece([(5,10),(6,10),(7,10)],PieceColor.BLACK))
-"""
 red_pieces = Fleet.generate(PieceColor.RED)
 black_pieces = Fleet.generate(PieceColor.BLACK)
 board = Board(red_pieces,black_pieces)
@@ -513,7 +516,7 @@ while not exit:
 					pygame.mixer.Sound.play(wrong_sound)
 
 	drawBoard(board)
-		
+	#drawCellNumbers(board)
 	drawPieces(board)
 	drawHits(board)
 	drawLastAImiss(board)
