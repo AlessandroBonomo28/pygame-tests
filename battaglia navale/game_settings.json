@@ -1,8 +1,9 @@
 {
-    "AI_delay_ms": 750,
+    "AI_delay_ms": 10,
     "day_born": 3,
     "month_born": 9,
     "year_born": 1934,
     "player_name": "Pippo",
-    "show_only_last_miss" : true
+    "hard_mode" : false,
+    "alternate_turns": false
 }

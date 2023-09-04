@@ -95,6 +95,7 @@ class Board:
     black_score : int
     red_pieces_alive : int
     black_pieces_alive : int
+    alternate_turns : bool = False
     def __init__(self, pieces_red : list[Piece] = [],pieces_black : list[Piece] = []):
         self.black_score = 0
         self.red_score = 0
@@ -186,6 +187,8 @@ class Board:
             self.turn_count += 1
         elif move.did_hit():
             self.__mark_hit(move)
+            if self.alternate_turns:
+                self.turn_count += 1
         else:
             self.__mark_miss(move)
             self.turn_count += 1
@@ -253,7 +256,7 @@ class Board:
                             return move
         return None
     def makeMoveRedAI(self,board):
-        luck = min(0.05 + self.turn_count/300, 0.75)
+        luck = min(0.05 + self.turn_count/500, 0.75)
         if self.__event_probability(luck):
             move = self.__get_move_that_hits(board)
             if move != None:

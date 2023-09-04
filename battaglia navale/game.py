@@ -17,7 +17,7 @@ color_divider = (0,0,0)
 cell_width = height/Board.width
 start_x_board = 0
 start_y_board = 0
-text_spacing = cell_width*0.7
+text_spacing = cell_width*1.1
 
 bgColor = (255,255,255)
 evenCellColor = (0,49,83)
@@ -96,7 +96,7 @@ def drawPieces(board : Board):
 			prev_position = position
 	#  red
 	for piece in board.red_pieces:
-		if not piece.is_dead: # disegna solo i pezzi vivi
+		if not piece.is_dead and board.status == GameStatus.IN_PROGRESS: # disegna solo i pezzi vivi
 			continue
 		prev_position = None
 		for position in piece.positions:
@@ -106,17 +106,40 @@ def drawPieces(board : Board):
 			pygame.draw.circle(canvas,redPiecesColor,((position[0]+0.5)*cell_width,(position[1]+0.5)*cell_width), piecesRadius)		
 			prev_position = position
 
-def drawHits(board : Board):
-	# cycle over hit hashmap
-	hit_enemy_color = (255,255,255)
-	hit_player_color = (0,0,0)
-	for position in board.hash_hits:
-		# draw cross
+def drawAllMisses(board : Board):
+	misses = board.hash_miss
+	for miss in misses:
+		if board.getCellColor(miss):
+			drawMissed(miss,(255,255,255))
+
+def drawMissed(position,color_missed):
+	# draw circle with inside empty
 		x = (position[0]+0.5)*cell_width
 		y = (position[1]+0.5)*cell_width
+		pygame.draw.circle(canvas,color_missed,(x,y), piecesRadius,5)
+		# draw single cross
+		pygame.draw.line(canvas,color_missed,(x-piecesRadius*0.7,y-piecesRadius*0.7),(x+piecesRadius*0.7,y+piecesRadius*0.7),5)
+
+def drawCross(position,color_outline,color_cross):
+	# draw cross with outline
+	x = (position[0]+0.5)*cell_width
+	y = (position[1]+0.5)*cell_width
+	# outline
+	
+	pygame.draw.line(canvas,color_outline,(x-piecesRadius,y-piecesRadius - 2),(x+piecesRadius,y+piecesRadius +2),20)
+	pygame.draw.line(canvas,color_outline,(x-piecesRadius,y+piecesRadius +2),(x+piecesRadius,y-piecesRadius -2),20)
+	
+	pygame.draw.line(canvas,color_cross,(x-piecesRadius,y-piecesRadius),(x+piecesRadius,y+piecesRadius),10)
+	pygame.draw.line(canvas,color_cross,(x-piecesRadius,y+piecesRadius),(x+piecesRadius,y-piecesRadius),10)
+	
+
+def drawHits(board : Board):
+	# cycle over hit hashmap
+	hit_enemy_color = (255,0,0)
+	hit_player_color = (255,0,0)
+	for position in board.hash_hits:
 		color = hit_enemy_color if board.getCellColor(position) == PieceColor.RED else hit_player_color
-		pygame.draw.line(canvas,color,(x-piecesRadius,y-piecesRadius),(x+piecesRadius,y+piecesRadius),7)
-		pygame.draw.line(canvas,color,(x-piecesRadius,y+piecesRadius),(x+piecesRadius,y-piecesRadius),7)
+		drawCross(position, (255,255,255),color)
 
 def drawLastAImiss(board : Board):
 	#pick last position of AI
@@ -134,41 +157,36 @@ def drawLastAImiss(board : Board):
 		#print("Red never moved a piece, cannot draw last move")
 		return
 	
-	if last_move.actor == PieceColor.RED:
-		# draw cross
-		x = (last_move.position_hit[0]+0.5)*cell_width
-		y = (last_move.position_hit[1]+0.5)*cell_width
-		pygame.draw.line(canvas,(255,0,0),(x-piecesRadius,y-piecesRadius),(x+piecesRadius,y+piecesRadius),7)
-		pygame.draw.line(canvas,(255,0,0),(x-piecesRadius,y+piecesRadius),(x+piecesRadius,y-piecesRadius),7)
+	if last_move.actor == PieceColor.RED and not move.did_hit():
+		drawMissed(last_move.position_hit,(255,255,255))
 
+def getLastMissed(board : Board, color : PieceColor) -> Move:
+	last_move = None
+	# get last red move
+	for i in range(len(board.moves)-1,-1,-1):
+		if board.moves[i].actor == color and board.moves[i].did_hit():
+			break
+		elif board.moves[i].actor == color and not board.moves[i].did_hit():
+			last_move = board.moves[i]
+			break
+
+	return last_move
 
 def drawYourLastMiss(board : Board):
 	global ticksLastBlinkSelector
 	if len(board.moves) == 0:
 		return
 	
-	last_move = None
-	# get last red move
-	for i in range(len(board.moves)-1,-1,-1):
-		if board.moves[i].actor == PieceColor.BLACK and board.moves[i].did_hit():
-			break
-		elif board.moves[i].actor == PieceColor.BLACK and not board.moves[i].did_hit():
-			last_move = board.moves[i]
-			break
+	last_move = getLastMissed(board,PieceColor.BLACK)
 
 	if last_move == None:
 		return
 	
-
+	color_missed = (255,255,255)
 	# blink condition (blink distrae e quindi commento)
 	#blink_condition = (pygame.time.get_ticks() - ticksLastBlinkSelector) % (msBlinkSelector*2) < msBlinkSelector
 	if last_move.actor == PieceColor.BLACK: # and blink_condition:
-		# draw circle with inside empty
-		x = (last_move.position_hit[0]+0.5)*cell_width
-		y = (last_move.position_hit[1]+0.5)*cell_width
-		pygame.draw.circle(canvas,(255,255,255),(x,y), piecesRadius,5)
-		# draw single cross
-		pygame.draw.line(canvas,(255,255,255),(x-piecesRadius,y-piecesRadius),(x+piecesRadius,y+piecesRadius),5)
+		drawMissed(last_move.position_hit,color_missed)
 
 def drawAim(board : Board):
 	aim_color = (0,200,0)
@@ -184,16 +202,20 @@ def drawAim(board : Board):
 			pygame.draw.line(canvas,aim_color,(x-piecesRadius,y),(x+piecesRadius,y),3)
 			pygame.draw.line(canvas,aim_color,(x,y-piecesRadius),(x,y+piecesRadius),3)
 
-			# draw cell number
-			txt_cell = "Casella "
-			txt_cell += chr(ord('A')+round(cell[1]))+str(round(cell[0]+1))
-			text = normalText.render(txt_cell, True, (255,255,255), (0,0,0))
-			textRect = text.get_rect()
-			if mouse_pos[1] < cell_width:
-				textRect.center = (mouse_pos[0], mouse_pos[1] + 40)
-			else:
-				textRect.center = (mouse_pos[0], mouse_pos[1] - 40)
-			canvas.blit(text, textRect)
+			if hard_mode:
+				# draw cell number
+				txt_cell = "Casella "
+				txt_cell += chr(ord('A')+round(cell[1]))+str(round(cell[0]+1))
+				text = normalText.render(txt_cell, True, (255,255,255), (0,0,0))
+				textRect = text.get_rect()
+				if mouse_pos[1] < cell_width:
+					textRect.center = (mouse_pos[0], mouse_pos[1] + cell_width)
+				else:
+					textRect.center = (mouse_pos[0], mouse_pos[1] - cell_width)
+				# draw line to connect text to cell
+				pygame.draw.line(canvas,aim_color,(x,y),(textRect.centerx,textRect.centery),3)
+				canvas.blit(text, textRect)
+			
 		elif board.isInsideBounds(cell) and board.getCellColor(cell) == PieceColor.BLACK:
 			# draw text Questa è la tua flotta
 			text = normalText.render("Questa è la tua flotta!", True, (255,255,255), (0,0,0))
@@ -266,31 +288,34 @@ def drawTextGameStatus():
 	if board.red_pieces_alive == 0:
 		status_text_color = (0,0,0)
 		bg_status_color = (0,255,0)
-		enemy_boats_txt = "Hai distrutto tutte le barche nemiche!"
+		enemy_boats_txt = "Hai distrutto tutte le navi nemiche!"
 	elif board.black_pieces_alive == 0:
-		enemy_boats_txt = "Tutte le tue barche sono state distrutte!"
+		enemy_boats_txt = "Tutte le tue navi sono state distrutte!"
 		status_text_color = (255,255,255)
 		bg_status_color = (255,0,0)
 	else:
 		
 		if board.red_pieces_alive == 1:
-			enemy_boats_txt = "Il nemico ha una sola barca ! "
+			enemy_boats_txt = "Il nemico ha una sola nave ! "
 		else:
-			enemy_boats_txt = f"Il nemico ha ancora {board.red_pieces_alive} barche"
+			enemy_boats_txt = f"Il nemico ha ancora {board.red_pieces_alive} navi"
 	
 	text = normalText.render(enemy_boats_txt, True, status_text_color,bg_status_color)
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*2)
 	canvas.blit(text, textRect)
 
-	min_score = min(board.red_score, board.black_score)
-	max_score = max(board.red_score, board.black_score)
+	score_red = len(board.red_pieces) - board.red_pieces_alive
+	score_black = len(board.black_pieces) - board.black_pieces_alive
+
+	min_score = min(score_red, score_black)
+	max_score = max(score_red, score_black)
 	
 	score_txt_color = (220,220,0)
 	score_txt = f"{max_score} - {min_score}"
-	if board.red_score > board.black_score:
-		score_txt += " per il Rosso"
-	elif board.red_score < board.black_score:
+	if score_red < score_black:
+		score_txt += " per il nemico"
+	elif score_red > score_black:
 		score_txt += " per te"
 	else:
 		score_txt += " Pari"	
@@ -371,14 +396,15 @@ draw_sound = pygame.mixer.Sound("sounds/draw.mp3")
 boom_sound = pygame.mixer.Sound("sounds/boom.mp3")
 start_game = draw_sound
 wrong_sound = pygame.mixer.Sound("sounds/wrong.mp3")
-
+good_sound = pygame.mixer.Sound("sounds/good.mp3")
+big_boom = pygame.mixer.Sound("sounds/big_boom.mp3")
 
 pygame.mixer.music.load('loop.mp3')
 pygame.mixer.music.play(-1)
 
 fontTurn = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
-normalText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.35))
-playerText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.25))
+normalText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
+playerText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.4))
 # CREATING CANVAS
 # resizable window
 
@@ -401,15 +427,19 @@ try:
 		day_born = game_settings["day_born"]
 		month_born = game_settings["month_born"]
 		year_born = game_settings["year_born"]
+		hard_mode = game_settings["hard_mode"]
+		alternate_turns = game_settings["alternate_turns"]
 except:
 	AI_delay_ms = 500
 	player_name = "Pippo"
 	day_born = 3
 	month_born = 9
 	year_born = 1934
+	hard_mode = False
+	alternate_turns = False
 
 exit = False
-
+print("hard mode:",hard_mode)
 
 assign_exp = False
 
@@ -421,6 +451,7 @@ button_reset = myButton("Ricomincia partita", (0,0), (0,100,0), (255,255,255), n
 red_pieces = Fleet.generate(PieceColor.RED)
 black_pieces = Fleet.generate(PieceColor.BLACK)
 board = Board(red_pieces,black_pieces)
+Board.alternate_turns = alternate_turns
 
 now = datetime.datetime.now()
 if now.day == day_born and now.month == month_born:
@@ -447,7 +478,9 @@ while not exit:
 			move = board.makeMoveRedAI(board)
 			pygame.time.delay(AI_delay_ms//2)
 			updateGamePostMove()
-			if move.did_hit():
+			if move.did_hit() and move.piece_hit.is_dead:
+				pygame.mixer.Sound.play(big_boom)
+			elif move.did_hit():
 				pygame.mixer.Sound.play(boom_sound)
 			else:
 				pygame.mixer.Sound.play(move_sound)
@@ -462,10 +495,10 @@ while not exit:
 			cell_width = height/Board.height
 			start_x_board = 0
 			start_y_board = 0
-			text_spacing = cell_width*0.7
+			text_spacing = cell_width * 1.1
 			fontTurn = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
-			normalText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.35))
-			playerText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.25))
+			normalText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
+			playerText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.4))
 			piecesRadius = cell_width//2 -10
 			selectedPieceRadius = piecesRadius +2.5
 			canvas = pygame.display.set_mode((width,height),pygame.RESIZABLE)
@@ -502,6 +535,26 @@ while not exit:
 					print("invalid cell to hit")
 					break
 				
+				# if already hit or is last missed
+				if cellPosition in board.hash_hits:
+					print("cell already hit")
+					pygame.mixer.Sound.play(wrong_sound)
+					break
+				
+				
+
+				last_missed = getLastMissed(board,PieceColor.BLACK)
+				
+				if hard_mode:
+					missed_positions = [last_missed]
+				else:
+					missed_positions = list(board.hash_miss.keys())
+				
+				if len(missed_positions) > 0 and cellPosition in missed_positions:
+					print("cell already missed")
+					pygame.mixer.Sound.play(wrong_sound)
+					break
+				
 				if board.getCellColor(cellPosition) == PieceColor.RED:
 					piece_to_hit = board.getPieceByPosition(cellPosition)
 					if piece_to_hit != None and piece_to_hit.color != board.whoMoves():
@@ -510,7 +563,9 @@ while not exit:
 					else:
 						move = Move(board.turn_count,PieceColor.BLACK,cellPosition,None,"missed")
 					board.makeMove(move)
-					if move.did_hit():
+					if move.did_hit() and piece_to_hit.is_dead:
+						pygame.mixer.Sound.play(big_boom)
+					elif move.did_hit():
 						pygame.mixer.Sound.play(boom_sound)
 					else:
 						pygame.mixer.Sound.play(wrong_sound)
@@ -522,9 +577,12 @@ while not exit:
 	#drawCellNumbers(board)
 	drawPieces(board)
 	drawHits(board)
-	drawLastAImiss(board)
-	drawYourLastMiss(board)
 	
+	if hard_mode:
+		drawLastAImiss(board)
+		drawYourLastMiss(board)
+	else:
+		drawAllMisses(board)
 	# bg of right part of screen
 	pygame.draw.rect(canvas,bgLogColor,(height,0,width-height,height))
 	
