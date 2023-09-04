@@ -8,6 +8,32 @@ from model.battleship import *
 from model.player import *
 from model.my_button import *
 
+
+try:
+	with open("game_settings.json") as f:
+		game_settings = json.load(f)
+		AI_delay_ms = game_settings["AI_delay_ms"]
+		player_name = game_settings["player_name"]
+		day_born = game_settings["day_born"]
+		month_born = game_settings["month_born"]
+		year_born = game_settings["year_born"]
+		hard_mode = game_settings["hard_mode"]
+		alternate_turns = game_settings["alternate_turns"]
+		side_board = game_settings["side_board"]
+except:
+	AI_delay_ms = 500
+	player_name = "Pippo"
+	day_born = 3
+	month_born = 9
+	year_born = 1934
+	hard_mode = False
+	alternate_turns = False
+	side_board = 14
+
+
+Board.width = Board.height = side_board
+Board.alternate_turns = alternate_turns
+
 pygame.init()
 
 width = pygame.display.Info().current_w
@@ -250,7 +276,7 @@ def drawBoard(board :Board):
 	pygame.draw.line(canvas,color_divider,(0,half_h),(Board.width*cell_width,half_h),stroke_divider)
 textColor = (255,255,255)
 def drawTextGameStatus():
-	text_x, text_y = Board.height*cell_width + (width -Board.height*cell_width)//2, 35
+	text_x, text_y = Board.width*cell_width + (width -Board.width*cell_width)//2, 35
 	textTurnColor = (0,0,0) if board.whoMoves() == PieceColor.RED else (255,255,255)
 	textTurnBgColor = (255,255,255) if board.whoMoves() == PieceColor.RED else (255,0,0)
 	if board.whoMoves() == PieceColor.BLACK:
@@ -336,16 +362,16 @@ def drawTextGameStatus():
 	canvas.blit(text, textRect)
 
 def drawExpBar(x,y):
-	w = (width - cell_width*Board.height) - 40
+	w = (width - cell_width*Board.width) - 40
 	pygame.draw.rect(canvas,(0,0,0),(x,y,w,cell_width//3))
 	pygame.draw.rect(canvas,(0,0,220),(x+cell_width//24,y+cell_width//24,(w-cell_width//24)*(player.experience/player.exp_limit_current_level()),cell_width//4))
 
 def drawPlayerStats():
-	text_x = Board.height*cell_width + (width -Board.height*cell_width)//2
+	text_x = Board.width*cell_width + (width -Board.width*cell_width)//2
 	text_y = height//2 + cell_width//2 +10
 	bgColorRect = (64,64,64)
 	# draw background rect
-	pygame.draw.rect(canvas,bgColorRect,(Board.height*cell_width +10, text_y - 30, width-(Board.height*cell_width+20), height-text_y))
+	pygame.draw.rect(canvas,bgColorRect,(Board.width*cell_width +10, text_y - 30, width-(Board.width*cell_width+20), height-text_y))
 	colorPlayerTxt = (255,255,255)
 	str_txt = f"{player.name} - Livello {player.level}"
 	if board.status != GameStatus.IN_PROGRESS and player_level_previous_game != player.level:
@@ -357,7 +383,7 @@ def drawPlayerStats():
 	textRect.center = (text_x, text_y)
 	canvas.blit(text, textRect)
 	
-	drawExpBar(Board.height*cell_width + 20, text_y + text_spacing)
+	drawExpBar(Board.width*cell_width + 20, text_y + text_spacing)
 	txt_exp = f"Esperienza: {int(player.experience)}/{int(player.exp_limit_current_level())}"
 	txt_exp_color = (255,255,255)
 	score_exp = board.black_score*board.get_multiplier()
@@ -419,24 +445,6 @@ pygame.display.set_icon(icon)
 # TITLE OF CANVAS
 pygame.display.set_caption("Battaglia navale 2023")
 
-try:
-	with open("game_settings.json") as f:
-		game_settings = json.load(f)
-		AI_delay_ms = game_settings["AI_delay_ms"]
-		player_name = game_settings["player_name"]
-		day_born = game_settings["day_born"]
-		month_born = game_settings["month_born"]
-		year_born = game_settings["year_born"]
-		hard_mode = game_settings["hard_mode"]
-		alternate_turns = game_settings["alternate_turns"]
-except:
-	AI_delay_ms = 500
-	player_name = "Pippo"
-	day_born = 3
-	month_born = 9
-	year_born = 1934
-	hard_mode = False
-	alternate_turns = False
 
 exit = False
 print("hard mode:",hard_mode)
@@ -450,8 +458,10 @@ button_reset = myButton("Ricomincia partita", (0,0), (0,100,0), (255,255,255), n
 
 red_pieces = Fleet.generate(PieceColor.RED)
 black_pieces = Fleet.generate(PieceColor.BLACK)
+
 board = Board(red_pieces,black_pieces)
-Board.alternate_turns = alternate_turns
+
+
 
 now = datetime.datetime.now()
 if now.day == day_born and now.month == month_born:
@@ -492,7 +502,7 @@ while not exit:
 		if event.type == pygame.VIDEORESIZE:
 			width = event.w
 			height = event.h
-			cell_width = height/Board.height
+			cell_width = height/Board.width
 			start_x_board = 0
 			start_y_board = 0
 			text_spacing = cell_width * 1.1
