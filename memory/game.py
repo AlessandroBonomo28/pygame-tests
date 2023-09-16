@@ -102,7 +102,14 @@ def updateGamePostMove():
 
 def drawPieces(board : Board):
 	for card in board.cards:
-		drawCross(card.position,(255,255,255),(0,0,0))
+		# draw text at center of cell with hash 
+		x = (card.position[0]+0.5)*cell_width
+		y = (card.position[1]+0.5)*cell_width
+		txt = fontTurn.render(str(card.hashed_id), True, (0,0,0), (255,255,255))
+		txtRect = txt.get_rect()
+		txtRect.center = (x, y)
+		canvas.blit(txt, txtRect)
+		#drawCross(card.position,(255,255,255),(0,0,0))
 
 def drawCross(position,color_outline,color_cross):
 	# draw cross with outline
@@ -179,13 +186,13 @@ def drawTextGameStatus():
 	
 	status_text_color = (0,0,0)
 	bg_status_color = (200,200,0)
-	enemy_boats_txt = "placeholder"
+	enemy_boats_txt = "Indovina le coppie di carte"
 	text = normalText.render(enemy_boats_txt, True, status_text_color,bg_status_color)
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*2)
 	canvas.blit(text, textRect)
 	score_txt_color = (255,255,255)
-	score_txt = f"Punteggio: {board.score}"
+	score_txt = f"Mancano {board.score} coppie"
 	text = normalText.render(score_txt, True, score_txt_color, (0,0,0))
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*3)
@@ -197,51 +204,14 @@ def drawTextGameStatus():
 	button_reset.position = (text_x, text_y + text_spacing*4)
 	button_reset.draw(canvas)
 
-	text = normalText.render(f"Premi M per mutare la musica", True, textColor, (0,0,0))
-	textRect = text.get_rect()
-	textRect.center = (text_x, text_y + text_spacing*5)
-	canvas.blit(text, textRect)
 
-def drawExpBar(x,y):
-	w = (width - cell_width*Board.width) - 40
-	pygame.draw.rect(canvas,(0,0,0),(x,y,w,cell_width//3))
-	pygame.draw.rect(canvas,(0,0,220),(x+cell_width//24,y+cell_width//24,(w-cell_width//24)*(player.experience/player.exp_limit_current_level()),cell_width//4))
 
 def drawPlayerStats():
-	text_x = Board.width*cell_width + (width -Board.width*cell_width)//2
-	text_y = height//2 + cell_width//2 +10
-	bgColorRect = (64,64,64)
-	# draw background rect
-	pygame.draw.rect(canvas,bgColorRect,(Board.width*cell_width +10, text_y - 30, width-(Board.width*cell_width+20), height-text_y))
-	colorPlayerTxt = (255,255,255)
-	str_txt = f"{player.name} - Livello {player.level}"
-	if board.status != GameStatus.IN_PROGRESS and player_level_previous_game != player.level:
-		str_txt += f" (+{player.level -player_level_previous_game})"
-		colorPlayerTxt = (0,255,0)
-	text = normalText.render(str_txt, True,colorPlayerTxt ,bgColorRect)
-	colorPlayerTxt = (255,255,255)
-	textRect = text.get_rect()
-	textRect.center = (text_x, text_y)
-	canvas.blit(text, textRect)
-	
-	drawExpBar(Board.width*cell_width + 20, text_y + text_spacing)
-	txt_exp = f"Esperienza: {int(player.experience)}/{int(player.exp_limit_current_level())}"
-	txt_exp_color = (255,255,255)
-	score_exp = board.score*board.get_multiplier()
-	if board.status != GameStatus.IN_PROGRESS and score_exp>0:
-		txt_exp += f"  +{score_exp} guadagnati!"
-		txt_exp_color = (0,255,0)
-	text = playerText.render(txt_exp, True, txt_exp_color,bgColorRect)
-	textRect = text.get_rect()
-	textRect.center = (text_x, text_y+ text_spacing*1.5)
-	canvas.blit(text, textRect)
-
-	text = playerText.render(f"Percentuale vittorie: {int(player.win_percent())}%", True, colorPlayerTxt,bgColorRect)
-	textRect = text.get_rect()
-	textRect.center = (text_x, text_y+ text_spacing*2)
-	canvas.blit(text, textRect)
-
-	text = playerText.render(f"{player.wins} Vinte, {player.losses} Perse", True, colorPlayerTxt,bgColorRect)
+	text_x, text_y = Board.width*cell_width + (width -Board.width*cell_width)//2, 35
+	text_y += text_spacing*4
+	color = (255,255,255)
+	bgColorRect = (0,0,0)
+	text = playerText.render(f"Giocate {player.total_games()} partite in totale", True, color,bgColorRect)
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y+ text_spacing*2.5)
 	canvas.blit(text, textRect)
@@ -269,9 +239,15 @@ big_boom = pygame.mixer.Sound("sounds/big_boom.mp3")
 pygame.mixer.music.load('loop.mp3')
 pygame.mixer.music.play(-1)
 
-fontTurn = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
-normalText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
-playerText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.25))
+fontTurn,normalText,playerText = None,None,None
+
+def setFont():
+	global fontTurn,normalText,playerText
+	fontTurn = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
+	normalText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
+	playerText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.25))
+setFont()
+
 # CREATING CANVAS
 # resizable window
 
@@ -296,7 +272,13 @@ player = Player(player_name)
 
 button_reset = myButton("Ricomincia partita", (0,0), (0,100,0), (255,255,255), normalText,False,border_color=(255,255,255))
 
+def hash(x):
+	return x% Board.width
+
 cards = []
+for i in range(Board.width):
+	for j in range(Board.height):
+		cards.append(Card((i,j),hash(i+j)))
 board = Board(cards)
 
 
@@ -330,9 +312,7 @@ while not exit:
 			start_x_board = 0
 			start_y_board = 0
 			text_spacing = cell_width * 1.1
-			fontTurn = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
-			normalText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
-			playerText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.25))
+			setFont()
 			piecesRadius = cell_width//2 -10
 			selectedPieceRadius = piecesRadius +2.5
 			canvas = pygame.display.set_mode((width,height),pygame.RESIZABLE)
