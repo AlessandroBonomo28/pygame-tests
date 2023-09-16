@@ -273,12 +273,14 @@ player = Player(player_name)
 button_reset = myButton("Ricomincia partita", (0,0), (0,100,0), (255,255,255), normalText,False,border_color=(255,255,255))
 
 def hash(x):
-	return x% Board.width
+	return x % (Board.width**2 // 2)
 
 cards = []
 for i in range(Board.width):
 	for j in range(Board.height):
-		cards.append(Card((i,j),hash(i+j)))
+		hashed_id = hash(i*Board.width+j)
+		pos = (i,j)
+		cards.append(Card(pos,hashed_id))
 board = Board(cards)
 
 
