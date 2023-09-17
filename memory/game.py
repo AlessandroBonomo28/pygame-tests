@@ -1,13 +1,47 @@
 from tkinter import filedialog
-import pygame,datetime,json,threading
+import pygame,datetime,json,threading,os
 
 from tkinter import *
 from tkinter import messagebox
-
+from model.logger import *
 from model.memory import *
 from model.player import *
 from model.my_button import *
 
+# telegram stuff
+import telepot
+from dotenv import load_dotenv, find_dotenv
+_ = load_dotenv(find_dotenv())
+
+USE_WHITELIST = True
+TOKEN_TELEGRAM = os.getenv('TOKEN_TELEGRAM') # Your token from Telegram Botfather
+WHITELIST = os.getenv('WHITELIST').split(',') # telegram allowed users ['id 1','id 2']
+
+
+def on_chat_message(msg):
+    content_type, chat_type, chat_id = telepot.glance(msg)
+    if USE_WHITELIST and str(chat_id) not in WHITELIST:
+        bot.sendMessage(chat_id, f"I can't share my knowledge with you ⛔.\nMaybe if you give this ID {chat_id} to the right person I will...")
+        return
+    if content_type == 'text':
+        if msg["text"] == "/ping": 
+            bot.sendMessage(chat_id, 'pong 🏓')
+
+
+bot = telepot.Bot(TOKEN_TELEGRAM)
+bot.message_loop(on_chat_message)
+
+def broadcast_to_whitelist(msg):
+	if USE_WHITELIST:
+		for chat_id in WHITELIST:
+			bot.sendMessage(chat_id, msg)
+
+broadcast_to_whitelist("Nonno Pippo sta giocando a Memory! 🚀")
+
+# end telegram stuff
+
+
+logger = Logger()
 
 try:
 	with open("game_settings.json") as f:
@@ -104,12 +138,37 @@ def drawSelectedCard():
 		y = (selectedCard.position[1]+0.5)*cell_width
 		pygame.draw.circle(canvas,colorSelectedPiece,(x,y), selectedPieceRadius,selectedPieceStroke)
 
+def games_today():
+	# leggi da logs/ e conta i file con data odierna
+	try:
+		logs = os.listdir("logs")
+		logs.sort()
+		today = datetime.datetime.now().strftime("%Y-%m-%d")
+		count = 0
+		for log in logs:
+			if log.startswith(today):
+				count += 1
+		return count
+	except:
+		return -1
+	
+
 def updateGamePostMove():
 	global assign_exp, player_level_previous_game
 	if board.status != GameStatus.IN_PROGRESS:
 		if board.status == GameStatus.WIN:
 			pygame.mixer.Sound.play(win_sound)
 			player.add_win()
+			log = GameLog(board.status,datetime.datetime.now(),time_elapsed_ms,board.score,board.turn_count)
+			logger.log(log)
+			msg = f"""
+			Nonno Pippo ha vinto una partita a memory! 🎉\n
+			- Partite totali: {player.total_games()}
+			- Durata partita: {datetime.timedelta(milliseconds=time_elapsed_ms)}
+			- Numero di mosse: {board.turn_count}
+			- Partite giocate oggi: {games_today()}
+			"""
+			broadcast_to_whitelist(msg)
 		elif board.status == GameStatus.DRAW:
 			pygame.mixer.Sound.play(draw_sound)
 			player.add_draw()
