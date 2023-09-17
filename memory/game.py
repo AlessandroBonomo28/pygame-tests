@@ -19,22 +19,27 @@ WHITELIST = os.getenv('WHITELIST').split(',') # telegram allowed users ['id 1','
 
 
 def on_chat_message(msg):
-    content_type, chat_type, chat_id = telepot.glance(msg)
-    if USE_WHITELIST and str(chat_id) not in WHITELIST:
-        bot.sendMessage(chat_id, f"I can't share my knowledge with you ⛔.\nMaybe if you give this ID {chat_id} to the right person I will...")
-        return
-    if content_type == 'text':
-        if msg["text"] == "/ping": 
-            bot.sendMessage(chat_id, 'pong 🏓')
+	try:
+		content_type, chat_type, chat_id = telepot.glance(msg)
+		if USE_WHITELIST and str(chat_id) not in WHITELIST:
+			bot.sendMessage(chat_id, f"I can't share my knowledge with you ⛔.\nMaybe if you give this ID {chat_id} to the right person I will...")
+			return
+		if content_type == 'text':
+			if msg["text"] == "/ping": 
+				bot.sendMessage(chat_id, 'pong 🏓')
+	except Exception as e:
+		print("Error while handling chat message",e)
 
-
+boot_time = datetime.datetime.now()
 bot = telepot.Bot(TOKEN_TELEGRAM)
 bot.message_loop(on_chat_message)
 
 def broadcast_to_whitelist(msg):
-	if USE_WHITELIST:
+	try:
 		for chat_id in WHITELIST:
 			bot.sendMessage(chat_id, msg)
+	except Exception as e:
+		print("Error while broadcasting to whitelist",e)
 
 broadcast_to_whitelist("Nonno Pippo sta giocando a Memory! 🚀")
 
@@ -53,6 +58,7 @@ try:
 		year_born = game_settings["year_born"]
 		hard_mode = game_settings["hard_mode"]
 		side_board = game_settings["side_board"]
+		sec_show_all_cards = game_settings["seconds_show_all_cards"]
 except:
 	AI_delay_ms = 500
 	player_name = "Pippo"
@@ -61,6 +67,7 @@ except:
 	year_born = 1934
 	hard_mode = False
 	side_board = 14
+	sec_show_all_cards = 10
 
 
 Board.width = Board.height = side_board
@@ -77,8 +84,8 @@ start_y_board = 0
 text_spacing = cell_width*1.1
 
 bgColor = (255,255,255)
-evenCellColor = (0,49,83)
-oddCellColor = (0,33,71)
+evenCellColor = (99, 6, 6)
+oddCellColor = (137, 15, 13)
 bgLogColor = (0,0,0)
 
 selectedCard = None
@@ -95,12 +102,11 @@ player_level_previous_game = None
 msBlinkSelector = 500
 ticksLastBlinkSelector = 0
 
-sec_show_all_cards = 10
+
 sec_hide_previous_move = 5
 
 time_elapsed_ms = 0
-kill_streak_happening = False
-
+played_today =0 
 
 
 def popUp(title,msg):
@@ -150,23 +156,25 @@ def games_today():
 				count += 1
 		return count
 	except:
-		return -1
+		return 0
 	
 
 def updateGamePostMove():
-	global assign_exp, player_level_previous_game
+	global assign_exp, player_level_previous_game,played_today
+	
 	if board.status != GameStatus.IN_PROGRESS:
 		if board.status == GameStatus.WIN:
 			pygame.mixer.Sound.play(win_sound)
 			player.add_win()
 			log = GameLog(board.status,datetime.datetime.now(),time_elapsed_ms,board.score,board.turn_count)
 			logger.log(log)
+			played_today = games_today()
 			msg = f"""
 			Nonno Pippo ha vinto una partita a memory! 🎉\n
 			- Partite totali: {player.total_games()}
 			- Durata partita: {datetime.timedelta(milliseconds=time_elapsed_ms)}
 			- Numero di mosse: {board.turn_count}
-			- Partite giocate oggi: {games_today()}
+			- Partite giocate oggi: {played_today}
 			"""
 			broadcast_to_whitelist(msg)
 		elif board.status == GameStatus.DRAW:
@@ -176,32 +184,39 @@ def updateGamePostMove():
 			pygame.mixer.Sound.play(lose_sound)
 			player.add_loss()
 		
-			
+		played_today = games_today()
 		assign_exp = True
 		player_level_previous_game = player.level
 
 # loag image pygame
 card_back_img = pygame.image.load('card_back.png')
+card_front_img = pygame.image.load('card_front.png')
+card_front_guessed = pygame.image.load('card_front_guessed.png')
 def drawCard(card : Card):
+	show_card :bool = card.guessed or card in card_show_list or showing_cards
+	if not show_card:
+		card_img = card_back_img
+	elif card.guessed:
+		card_img = card_front_guessed
+	else:
+		card_img = card_front_img
 
-	if card.guessed or card in card_show_list or showing_cards:
+	offset = 5
+	img = pygame.transform.scale(card_img, (int(cell_width)-offset, int(cell_width)-offset))
+	canvas.blit(img, (card.position[0]*cell_width,card.position[1]*cell_width))
+
+	if show_card:
 			# draw text at center of cell with hash 
 			x = (card.position[0]+0.5)*cell_width
 			y = (card.position[1]+0.5)*cell_width
-			bgColCard = (255,255,255) if not card.guessed else (0,255,0)
+			bgColCard = (255,255,255) if not card.guessed else (0,209,0)
 			txt = fontTurn.render(str(card.hashed_id), True, (0,0,0), bgColCard)
 			txtRect = txt.get_rect()
 			txtRect.center = (x, y)
 			canvas.blit(txt, txtRect)
 			#drawCross(card.position,(255,255,255),(0,0,0))
-	else:
-
-		# draw png transparent 
-		# resize
-		offset = 5
-		img = pygame.transform.scale(card_back_img, (int(cell_width)-offset, int(cell_width)-offset))
-		# draw
-		canvas.blit(img, (card.position[0]*cell_width,card.position[1]*cell_width))
+			card_img = card_front_img
+	
 
 
 def drawPieces(board : Board):
@@ -256,7 +271,7 @@ def drawTextGameStatus():
 	textTurn = f"Turno {board.turn_count+1}"
 
 	if board.status != GameStatus.IN_PROGRESS: 
-		textTurn = "Hai perso!" if board.status == GameStatus.WIN else "Hai vinto!" if board.status == GameStatus.LOSE else "Patta!"
+		textTurn = "Hai perso!" if board.status == GameStatus.LOSE else "Hai vinto!" if board.status == GameStatus.WIN else "Patta!"
 		textTurnColor = (255,255,255)
 		textTurnBgColor = (255,0,0)
 	text = fontTurn.render(textTurn, True, textTurnColor, textTurnBgColor)
@@ -281,11 +296,11 @@ def drawTextGameStatus():
 	textRect.center = (text_x, text_y + text_spacing)
 	canvas.blit(text, textRect)
 	
-	status_text_color = (0,0,0)
-	bg_status_color = (200,200,0)
+	status_text_color = (255,255,255) if showing_cards else (0,0,0)
+	bg_status_color = (200,0,0) if showing_cards else (200,200,0)
 	time_elapsed_hide = pygame.time.get_ticks() - time_start_show
 	secs = sec_show_all_cards - (time_elapsed_hide//1000)
-	txt_warn = f"{secs} secondi per ricordare" if showing_cards else "Seleziona le coppie"
+	txt_warn = f"ATTENDI {secs} secondi..." if showing_cards else "Seleziona le coppie"
 	text = normalText.render(txt_warn, True, status_text_color,bg_status_color)
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*2)
@@ -310,7 +325,10 @@ def drawPlayerStats():
 	text_y = board.height * cell_width//2
 	color = (255,255,255)
 	bgColorRect = (0,0,0)
-	text = playerText.render(f"Giocate {player.total_games()} partite in totale", True, color,bgColorRect)
+	msg = f"Oggi hai giocato {played_today} partite, bravo Nonno"
+	if played_today == 0:
+		msg = "Non hai ancora vinto oggi, forza!"
+	text = playerText.render(msg, True, color,bgColorRect)
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y+ text_spacing*2.5)
 	canvas.blit(text, textRect)
@@ -343,7 +361,7 @@ fontTurn,normalText,playerText = None,None,None
 def setFont():
 	global fontTurn,normalText,playerText
 	fontTurn = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
-	normalText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.5))
+	normalText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.4))
 	playerText = pygame.font.SysFont('Comic Sans MS', int(cell_width*0.25))
 setFont()
 
@@ -373,7 +391,7 @@ player = Player(player_name)
 button_reset = myButton("Ricomincia partita", (0,0), (0,100,0), (255,255,255), normalText,False,border_color=(255,255,255))
 
 def hash(x):
-	return x+1 % (Board.width**2 // 2)
+	return (x % (Board.width**2 // 2)) +1
 
 cards = []
 for i in range(Board.width):
@@ -382,7 +400,7 @@ for i in range(Board.width):
 		pos = (i,j)
 		cards.append(Card(pos,hashed_id))
 board = Board(cards)
-
+resetGame()
 
 
 now = datetime.datetime.now()
@@ -418,12 +436,17 @@ while not exit:
 			canvas = pygame.display.set_mode((width,height),pygame.RESIZABLE)
 		
 		if event.type == pygame.QUIT:
+			#delta con boot time
+			delta = datetime.datetime.now() - boot_time
+			# format in duration
+			delta = datetime.timedelta(seconds=delta.seconds)
+			broadcast_to_whitelist(f"Nonno Pippo si è sfasteriato e ha chiuso il gioco dopo {delta} 😢")
 			exit = True
 		if event.type == pygame.KEYDOWN:
 			if event.key == pygame.K_ESCAPE:
 				exit = True
-			#if event.key == pygame.K_s:
-			#	showing_cards = not showing_cards
+			if event.key == pygame.K_s:
+				showing_cards = not showing_cards
 			if event.key == pygame.K_m:
 				audio_enabled = not audio_enabled
 				if audio_enabled:
@@ -465,6 +488,7 @@ while not exit:
 					selectedCard = board.getCardByPosition(cellPosition)
 					pygame.mixer.Sound.play(move_sound)
 				else:
+					pygame.mixer.Sound.play(move_sound)
 					# second card selected
 					secondCard = board.getCardByPosition(cellPosition)
 					if secondCard == selectedCard:
