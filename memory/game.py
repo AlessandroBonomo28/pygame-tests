@@ -180,11 +180,11 @@ def updateGamePostMove():
 		assign_exp = True
 		player_level_previous_game = player.level
 
+# loag image pygame
+card_back_img = pygame.image.load('card_back.png')
+def drawCard(card : Card):
 
-def drawPieces(board : Board):
-	global card_show_list
-	for card in board.cards:
-		if card.guessed or card in card_show_list or showing_cards:
+	if card.guessed or card in card_show_list or showing_cards:
 			# draw text at center of cell with hash 
 			x = (card.position[0]+0.5)*cell_width
 			y = (card.position[1]+0.5)*cell_width
@@ -194,6 +194,21 @@ def drawPieces(board : Board):
 			txtRect.center = (x, y)
 			canvas.blit(txt, txtRect)
 			#drawCross(card.position,(255,255,255),(0,0,0))
+	else:
+
+		# draw png transparent 
+		# resize
+		offset = 5
+		img = pygame.transform.scale(card_back_img, (int(cell_width)-offset, int(cell_width)-offset))
+		# draw
+		canvas.blit(img, (card.position[0]*cell_width,card.position[1]*cell_width))
+
+
+def drawPieces(board : Board):
+	global card_show_list
+	for card in board.cards:
+		drawCard(card)
+		
 
 def drawCross(position,color_outline,color_cross):
 	# draw cross with outline
@@ -387,8 +402,6 @@ while not exit:
 		player.add_exp(board.score)
 	canvas.fill(bgColor)
 
-	
-	
 	
 	for event in pygame.event.get():
 		# if resized window
