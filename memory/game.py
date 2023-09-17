@@ -8,6 +8,10 @@ from model.memory import *
 from model.player import *
 from model.my_button import *
 
+# force single instance
+from tendo import singleton
+me = singleton.SingleInstance()
+
 # telegram stuff
 import telepot
 from dotenv import load_dotenv, find_dotenv
@@ -44,7 +48,22 @@ def broadcast_to_whitelist(msg):
 broadcast_to_whitelist("Nonno Pippo sta giocando a Memory! 🚀")
 
 # end telegram stuff
-
+msg_record = None
+def save_record_time():
+	global msg_record
+	if player.record != None:
+		#convert time str to datetime
+		player.record = player.record.split(".")[0]
+		dt_record = datetime.datetime.strptime(player.record, '%H:%M:%S')
+		if datetime.timedelta(milliseconds=time_elapsed_ms) <  datetime.timedelta(hours=dt_record.hour,minutes=dt_record.minute,seconds=dt_record.second):
+			str_record = str(datetime.timedelta(milliseconds=time_elapsed_ms))
+			str_record = str_record.split(".")[0]
+			msg_record = f"Record battuto: {player.record}"
+			player.set_record(str_record)
+	else:
+		str_record = str(datetime.timedelta(milliseconds=time_elapsed_ms))
+		str_record = str_record.split(".")[0]
+		player.set_record(str_record)
 
 logger = Logger()
 
@@ -114,7 +133,8 @@ def popUp(title,msg):
 	messagebox.showinfo(title,msg)
 
 def resetGame():
-	global board,time_elapsed_ms,button_reset, showing_cards,time_start_show,last_timer,card_show_list
+	global board,time_elapsed_ms,button_reset, showing_cards,time_start_show,last_timer,card_show_list,msg_record
+	msg_record = None
 	card_show_list = []
 	board.reset()
 	time_elapsed_ms = 0
@@ -160,7 +180,7 @@ def games_today():
 	
 
 def updateGamePostMove():
-	global assign_exp, player_level_previous_game,played_today
+	global assign_exp, player_level_previous_game,played_today,best_time
 	
 	if board.status != GameStatus.IN_PROGRESS:
 		if board.status == GameStatus.WIN:
@@ -169,6 +189,7 @@ def updateGamePostMove():
 			log = GameLog(board.status,datetime.datetime.now(),time_elapsed_ms,board.score,board.turn_count)
 			logger.log(log)
 			played_today = games_today()
+			save_record_time()
 			msg = f"""
 			Nonno Pippo ha vinto una partita a memory! 🎉\n
 			- Partite totali: {player.total_games()}
@@ -183,7 +204,9 @@ def updateGamePostMove():
 		elif board.status == GameStatus.LOSE:
 			pygame.mixer.Sound.play(lose_sound)
 			player.add_loss()
+
 		
+
 		played_today = games_today()
 		assign_exp = True
 		player_level_previous_game = player.level
@@ -272,6 +295,8 @@ def drawTextGameStatus():
 
 	if board.status != GameStatus.IN_PROGRESS: 
 		textTurn = "Hai perso!" if board.status == GameStatus.LOSE else "Hai vinto!" if board.status == GameStatus.WIN else "Patta!"
+		if msg_record != None:
+			textTurn = msg_record
 		textTurnColor = (255,255,255)
 		textTurnBgColor = (255,0,0)
 	text = fontTurn.render(textTurn, True, textTurnColor, textTurnBgColor)
@@ -279,7 +304,11 @@ def drawTextGameStatus():
 	textRect.center = (text_x, text_y)
 	if board.status != GameStatus.IN_PROGRESS:
 		canvas.blit(text, textRect)
-
+	elif player.record != None and board.status == GameStatus.IN_PROGRESS:
+		text = normalText.render(f"Record: {player.record}", True, (255,255,255), (0,0,0))
+		textRect = text.get_rect()
+		textRect.center = (text_x, text_y)
+		canvas.blit(text, textRect)
 	
 	time_elapsed_s = (time_elapsed_ms//1000) 
 	time_elapsed_m = (time_elapsed_s//60)

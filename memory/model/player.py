@@ -13,12 +13,13 @@ class Player:
     losses : int
     draws : int
     wins : int
-
+    record : str
     def __init__(self, name):
         self.ID = str(uuid.uuid4())
         self.name = name
         self.experience = 0
         self.draws = 0
+        self.record = None
         self.total_experience = 0
         self.level = 1
         self.losses = 0
@@ -62,6 +63,10 @@ class Player:
         self.draws += 1
         self.__save()
 
+    def set_record(self, record):
+        self.record = record
+        self.__save()
+
     def win_percent(self):
         if self.wins == 0:
             return 0
@@ -85,7 +90,8 @@ class Player:
         return f"Player: {self.name} \
                 \nLevel: {self.level} \
                 \nExp: {int(self.experience)}/{int(self.exp_limit_current_level())} \
-                \nWin percentage: {self.win_percent()}%"    
+                \nWin percentage: {self.win_percent()}% \
+                \nRecord: {self.record}"
 
 """p = Player("test")
 
