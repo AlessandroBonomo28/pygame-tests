@@ -14,3 +14,5 @@ os.system(f"copy loop.mp3 dist\{name}")
 os.system(f"copy icon.png dist\{name}")
 # copy sound directory with all files to dist folder
 os.system(f"xcopy sounds dist\{name}\sounds /E /I /Y")
+
+os.system(f"xcopy images dist\{name}\images /E /I /Y")

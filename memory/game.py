@@ -189,9 +189,9 @@ def updateGamePostMove():
 		player_level_previous_game = player.level
 
 # loag image pygame
-card_back_img = pygame.image.load('card_back.png')
-card_front_img = pygame.image.load('card_front.png')
-card_front_guessed = pygame.image.load('card_front_guessed.png')
+card_back_img = pygame.image.load('images/card_back.png')
+card_front_img = pygame.image.load('images/card_front.png')
+card_front_guessed = pygame.image.load('images/card_front_guessed.png')
 def drawCard(card : Card):
 	show_card :bool = card.guessed or card in card_show_list or showing_cards
 	if not show_card:
@@ -300,7 +300,17 @@ def drawTextGameStatus():
 	bg_status_color = (200,0,0) if showing_cards else (200,200,0)
 	time_elapsed_hide = pygame.time.get_ticks() - time_start_show
 	secs = sec_show_all_cards - (time_elapsed_hide//1000)
-	txt_warn = f"ATTENDI {secs} secondi..." if showing_cards else "Seleziona le coppie"
+	if secs > 0 and showing_cards:
+		# mostra testo vicino a mouse position
+		mouse_pos = pygame.mouse.get_pos()
+		cell = mousePositionToCell(mouse_pos)
+		if board.isInsideBounds(cell):
+			msg = f"ATTENDI {secs} secondi..."
+			txt = normalText.render(msg, True, status_text_color,(0,0,255))
+			txtRect = txt.get_rect()
+			txtRect.center = (mouse_pos[0], mouse_pos[1] +cell_width//2)
+			canvas.blit(txt, txtRect)
+	txt_warn = "Memorizza i numeri ! " if showing_cards else "Seleziona le coppie"
 	text = normalText.render(txt_warn, True, status_text_color,bg_status_color)
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*2)
