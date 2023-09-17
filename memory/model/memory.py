@@ -41,6 +41,7 @@ class Move:
 
 
 class Board:
+    guessed : list[Card]
     __score_multiplier = 1
     status : GameStatus = GameStatus.IN_PROGRESS
     height : int = 14
@@ -52,13 +53,23 @@ class Board:
     def __init__(self, cards : list[Card] = []):
         self.score = 0
         self.moves = []
+        self.guessed = []
         self.turn_count = 0
         self.cards = cards
         self.__updateStatus()
 
     
     def reset(self):
-        self.__init__([])
+        positions = []
+        for card in self.cards:
+            card.reset()
+            positions.append(card.position)
+        # shuffle cards positions
+        random.shuffle(positions)
+        for card in self.cards:
+            card.position = positions.pop()
+        
+        self.__init__(self.cards)
 
     def get_multiplier(self):
         return self.__score_multiplier
@@ -73,13 +84,23 @@ class Board:
             return None
     
     def __updateStatus(self):
-        # count cards to guess
-        self.status = GameStatus.IN_PROGRESS
+        cards_to_guess = 0
+        for card in self.cards:
+            if not card.guessed:
+                cards_to_guess += 1
+        if cards_to_guess == 0:
+            self.status = GameStatus.WIN
+        else:
+            self.status = GameStatus.IN_PROGRESS
 
     def makeMove(self, move : Move):
         self.turn_count += 1
-            
-        
+        if move.did_guess():
+            move.pair[0].guessed = True
+            move.pair[1].guessed = True
+            self.guessed.append(move.pair[0])
+            self.guessed.append(move.pair[1])
+            self.increment_score(move)
         self.moves.append(move)
         self.__updateStatus()
 

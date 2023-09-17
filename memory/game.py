@@ -1,5 +1,5 @@
 from tkinter import filedialog
-import pygame,datetime,json
+import pygame,datetime,json,threading
 
 from tkinter import *
 from tkinter import messagebox
@@ -47,19 +47,22 @@ evenCellColor = (0,49,83)
 oddCellColor = (0,33,71)
 bgLogColor = (0,0,0)
 
-colorSelectedPiece = (0,255,0)
+selectedCard = None
+card_show_list = []
+colorSelectedPiece = (255,255,0)
 
-
+showing_cards = False
 piecesRadius = cell_width//2 -10
 selectedPieceRadius = piecesRadius +2.5
-selectedPieceStroke = 5
+selectedPieceStroke = 8
 
 player_level_previous_game = None
 
 msBlinkSelector = 500
 ticksLastBlinkSelector = 0
 
-
+sec_show_all_cards = 10
+sec_hide_previous_move = 5
 
 time_elapsed_ms = 0
 kill_streak_happening = False
@@ -71,16 +74,35 @@ def popUp(title,msg):
 	messagebox.showinfo(title,msg)
 
 def resetGame():
-	global board,   time_elapsed_ms,button_reset
+	global board,time_elapsed_ms,button_reset, showing_cards,time_start_show,last_timer,card_show_list
+	card_show_list = []
 	board.reset()
 	time_elapsed_ms = 0
 	button_reset.set_blink(False)
 	button_reset.set_original_color()
 	pygame.mixer.Sound.play(start_game)
 
+	showing_cards = True
+	# timer to hide all cards
+	def hide_all_cards():
+		global showing_cards, time_start_show
+		showing_cards = False
+	time_start_show = pygame.time.get_ticks()
+	if last_timer and last_timer.is_alive():
+		last_timer.cancel()
+	last_timer = threading.Timer(sec_show_all_cards, hide_all_cards)
+	last_timer.start()
+
 def mousePositionToCell(position):
 	return (position[0]//cell_width, position[1]//cell_width)
 
+def drawSelectedCard():
+	global selectedCard
+	if selectedCard:
+		# draw circle with cross 
+		x = (selectedCard.position[0]+0.5)*cell_width
+		y = (selectedCard.position[1]+0.5)*cell_width
+		pygame.draw.circle(canvas,colorSelectedPiece,(x,y), selectedPieceRadius,selectedPieceStroke)
 
 def updateGamePostMove():
 	global assign_exp, player_level_previous_game
@@ -101,15 +123,18 @@ def updateGamePostMove():
 
 
 def drawPieces(board : Board):
+	global card_show_list
 	for card in board.cards:
-		# draw text at center of cell with hash 
-		x = (card.position[0]+0.5)*cell_width
-		y = (card.position[1]+0.5)*cell_width
-		txt = fontTurn.render(str(card.hashed_id), True, (0,0,0), (255,255,255))
-		txtRect = txt.get_rect()
-		txtRect.center = (x, y)
-		canvas.blit(txt, txtRect)
-		#drawCross(card.position,(255,255,255),(0,0,0))
+		if card.guessed or card in card_show_list or showing_cards:
+			# draw text at center of cell with hash 
+			x = (card.position[0]+0.5)*cell_width
+			y = (card.position[1]+0.5)*cell_width
+			bgColCard = (255,255,255) if not card.guessed else (0,255,0)
+			txt = fontTurn.render(str(card.hashed_id), True, (0,0,0), bgColCard)
+			txtRect = txt.get_rect()
+			txtRect.center = (x, y)
+			canvas.blit(txt, txtRect)
+			#drawCross(card.position,(255,255,255),(0,0,0))
 
 def drawCross(position,color_outline,color_cross):
 	# draw cross with outline
@@ -125,7 +150,7 @@ def drawCross(position,color_outline,color_cross):
 	
 
 def drawAim(board : Board):
-	aim_color = (0,200,0)
+	aim_color = (255,255,0)
 	if board.status == GameStatus.IN_PROGRESS:
 		# draw red circle with cross 
 		mouse_pos = pygame.mouse.get_pos()
@@ -134,9 +159,6 @@ def drawAim(board : Board):
 			x = (cell[0]+0.5)*cell_width
 			y = (cell[1]+0.5)*cell_width
 			pygame.draw.circle(canvas,aim_color,(x,y), piecesRadius,3)
-			# draw single cross vertical horizontal
-			pygame.draw.line(canvas,aim_color,(x-piecesRadius,y),(x+piecesRadius,y),3)
-			pygame.draw.line(canvas,aim_color,(x,y-piecesRadius),(x,y+piecesRadius),3)
 
 
 def drawBoard(board :Board):
@@ -166,7 +188,8 @@ def drawTextGameStatus():
 	text = fontTurn.render(textTurn, True, textTurnColor, textTurnBgColor)
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y)
-	canvas.blit(text, textRect)
+	if board.status != GameStatus.IN_PROGRESS:
+		canvas.blit(text, textRect)
 
 	
 	time_elapsed_s = (time_elapsed_ms//1000) 
@@ -186,13 +209,15 @@ def drawTextGameStatus():
 	
 	status_text_color = (0,0,0)
 	bg_status_color = (200,200,0)
-	enemy_boats_txt = "Indovina le coppie di carte"
-	text = normalText.render(enemy_boats_txt, True, status_text_color,bg_status_color)
+	time_elapsed_hide = pygame.time.get_ticks() - time_start_show
+	secs = sec_show_all_cards - (time_elapsed_hide//1000)
+	txt_warn = f"{secs} secondi per ricordare" if showing_cards else "Seleziona le coppie"
+	text = normalText.render(txt_warn, True, status_text_color,bg_status_color)
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*2)
 	canvas.blit(text, textRect)
 	score_txt_color = (255,255,255)
-	score_txt = f"Mancano {board.score} coppie"
+	score_txt = f"Mancano {Board.height**2 //2- board.score} coppie"
 	text = normalText.render(score_txt, True, score_txt_color, (0,0,0))
 	textRect = text.get_rect()
 	textRect.center = (text_x, text_y + text_spacing*3)
@@ -208,7 +233,7 @@ def drawTextGameStatus():
 
 def drawPlayerStats():
 	text_x, text_y = Board.width*cell_width + (width -Board.width*cell_width)//2, 35
-	text_y += text_spacing*4
+	text_y = board.height * cell_width//2
 	color = (255,255,255)
 	bgColorRect = (0,0,0)
 	text = playerText.render(f"Giocate {player.total_games()} partite in totale", True, color,bgColorRect)
@@ -267,7 +292,8 @@ exit = False
 print("hard mode:",hard_mode)
 
 assign_exp = False
-
+last_timer = None
+time_start_show = 0
 player = Player(player_name)
 
 button_reset = myButton("Ricomincia partita", (0,0), (0,100,0), (255,255,255), normalText,False,border_color=(255,255,255))
@@ -299,7 +325,7 @@ while not exit:
 		time_elapsed_ms += pygame.time.Clock().tick(60)
 	elif assign_exp:
 		assign_exp = False
-		player.add_exp(board.black_score)
+		player.add_exp(board.score)
 	canvas.fill(bgColor)
 
 	
@@ -324,6 +350,8 @@ while not exit:
 		if event.type == pygame.KEYDOWN:
 			if event.key == pygame.K_ESCAPE:
 				exit = True
+			#if event.key == pygame.K_s:
+			#	showing_cards = not showing_cards
 			if event.key == pygame.K_m:
 				audio_enabled = not audio_enabled
 				if audio_enabled:
@@ -337,6 +365,7 @@ while not exit:
 			
 		if (event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEBUTTONUP) :
 			pos = pygame.mouse.get_pos()
+			
 
 			if board.status != GameStatus.IN_PROGRESS:
 				break
@@ -349,36 +378,61 @@ while not exit:
 				ticksLastBlinkSelector = pygame.time.get_ticks()
 				if not board.isInsideBounds(cellPosition):
 					print("invalid cell to hit")
+					selectedCard = None
 					break
-				
-				
-				"""if board.getCellColor(cellPosition) == PieceColor.RED:
-					piece_to_hit = board.getCardByPosition(cellPosition)
-					if piece_to_hit != None and piece_to_hit.color != board.whoMoves():
-						print("piece to hit:",piece_to_hit)
-						move = Move(board.turn_count,PieceColor.BLACK,cellPosition,piece_to_hit,"hitted")
-					else:
-						move = Move(board.turn_count,PieceColor.BLACK,cellPosition,None,"missed")
+
+				if showing_cards:
+					pygame.mixer.Sound.play(wrong_sound)
+					break
+
+				if board.getCardByPosition(cellPosition).guessed:
+					pygame.mixer.Sound.play(wrong_sound)
+					selectedCard = None
+					break
+				if selectedCard == None:
+					selectedCard = board.getCardByPosition(cellPosition)
+					pygame.mixer.Sound.play(move_sound)
+				else:
+					# second card selected
+					secondCard = board.getCardByPosition(cellPosition)
+					if secondCard == selectedCard:
+						pygame.mixer.Sound.play(wrong_sound)
+						break
+					move = Move(board.turn_count,(selectedCard,secondCard),"move")
 					board.makeMove(move)
-					if move.did_hit() and piece_to_hit.is_dead:
-						pygame.mixer.Sound.play(big_boom)
-					elif move.did_hit():
-						pygame.mixer.Sound.play(boom_sound)
+					if move.did_guess():
+						pygame.mixer.Sound.play(good_sound)
 					else:
 						pygame.mixer.Sound.play(wrong_sound)
+						if not hard_mode:
+							card_show_list = []
+						card_show_list.append(selectedCard)
+						card_show_list.append(secondCard)
+						# deselect after time using threading timer
+						def deselect():
+							global card_show_list
+							# dequeue 2
+							try:
+								card_show_list.pop(0)
+								card_show_list.pop(0)
+							except:
+								pass
+						if hard_mode:
+							last_timer = threading.Timer(sec_hide_previous_move, deselect).start()
+
+					selectedCard = None
 					updateGamePostMove()
-				else:
-					pygame.mixer.Sound.play(wrong_sound)"""
+				
 
 	drawBoard(board)
 	#drawCellNumbers(board)
 	drawPieces(board)
-	
+	drawAim(board)
+	drawSelectedCard()
 	# bg of right part of screen
 	pygame.draw.rect(canvas,bgLogColor,(height,0,width-height,height))
 	
 	drawTextGameStatus()
 	drawPlayerStats()
-	drawAim(board)
 	pygame.display.update()
 
