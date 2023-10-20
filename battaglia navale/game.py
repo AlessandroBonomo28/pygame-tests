@@ -8,6 +8,9 @@ from model.battleship import *
 from model.player import *
 from model.my_button import *
 
+# force single instance
+from tendo import singleton
+me = singleton.SingleInstance()
 
 try:
 	with open("game_settings.json") as f:
