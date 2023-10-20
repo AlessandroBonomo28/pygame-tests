@@ -371,7 +371,7 @@ def drawPlayerStats():
 	text_y = board.height * cell_width//2
 	color = (255,255,255)
 	bgColorRect = (0,0,0)
-	msg = f"Oggi hai giocato {played_today} partite, bravo Nonno"
+	msg = f"Oggi hai giocato {played_today} partite, bravo {player_name}"
 	if played_today == 0:
 		msg = "Non hai ancora vinto oggi, forza!"
 	text = playerText.render(msg, True, color,bgColorRect)
