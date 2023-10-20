@@ -8,6 +8,8 @@ settings.py
 # C extensions
 *.so
 logs/
+data/
+
 
 # Distribution / packaging
 .env

@@ -19,8 +19,11 @@ _ = load_dotenv(find_dotenv())
 
 USE_WHITELIST = True
 TOKEN_TELEGRAM = os.getenv('TOKEN_TELEGRAM') # Your token from Telegram Botfather
-WHITELIST = os.getenv('WHITELIST').split(',') # telegram allowed users ['id 1','id 2']
+WHITELIST = os.getenv('WHITELIST') # telegram allowed users ['id 1','id 2']
+if WHITELIST:
+	WHITELIST = WHITELIST.split(",")
 
+ENV_VARS_LOADED = WHITELIST != None and TOKEN_TELEGRAM != None
 
 def on_chat_message(msg):
 	try:
@@ -35,8 +38,12 @@ def on_chat_message(msg):
 		print("Error while handling chat message",e)
 
 boot_time = datetime.datetime.now()
-bot = telepot.Bot(TOKEN_TELEGRAM)
-bot.message_loop(on_chat_message)
+
+try:
+	bot = telepot.Bot(TOKEN_TELEGRAM)
+	bot.message_loop(on_chat_message)
+except Exception as e:
+	print("Error while starting telegram bot",e)
 
 def broadcast_to_whitelist(msg):
 	try:
