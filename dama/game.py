@@ -9,6 +9,10 @@ from model.player import *
 from model.my_button import *
 from model.logger import *
 
+# force single instance
+from tendo import singleton
+me = singleton.SingleInstance()
+
 pygame.init()
 
 width = pygame.display.Info().current_w
