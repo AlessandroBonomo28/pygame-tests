@@ -12,6 +12,27 @@ from model.my_button import *
 from tendo import singleton
 me = singleton.SingleInstance()
 
+try:
+	with open("game_settings.json") as f:
+		game_settings = json.load(f)
+		AI_delay_ms = game_settings["AI_delay_ms"]
+		player_name = game_settings["player_name"]
+		day_born = game_settings["day_born"]
+		month_born = game_settings["month_born"]
+		year_born = game_settings["year_born"]
+		hard_mode = game_settings["hard_mode"]
+		side_board = game_settings["side_board"]
+		sec_show_all_cards = game_settings["seconds_show_all_cards"]
+except:
+	AI_delay_ms = 500
+	player_name = "Pippo"
+	day_born = 3
+	month_born = 9
+	year_born = 1934
+	hard_mode = False
+	side_board = 14
+	sec_show_all_cards = 10
+
 # telegram stuff
 import telepot
 from dotenv import load_dotenv, find_dotenv
@@ -52,7 +73,7 @@ def broadcast_to_whitelist(msg):
 	except Exception as e:
 		print("Error while broadcasting to whitelist",e)
 
-broadcast_to_whitelist("Nonno Pippo sta giocando a Memory! 🚀")
+broadcast_to_whitelist(f"{player_name} sta giocando a Memory! 🚀")
 
 # end telegram stuff
 msg_record = None
@@ -74,26 +95,7 @@ def save_record_time():
 
 logger = Logger()
 
-try:
-	with open("game_settings.json") as f:
-		game_settings = json.load(f)
-		AI_delay_ms = game_settings["AI_delay_ms"]
-		player_name = game_settings["player_name"]
-		day_born = game_settings["day_born"]
-		month_born = game_settings["month_born"]
-		year_born = game_settings["year_born"]
-		hard_mode = game_settings["hard_mode"]
-		side_board = game_settings["side_board"]
-		sec_show_all_cards = game_settings["seconds_show_all_cards"]
-except:
-	AI_delay_ms = 500
-	player_name = "Pippo"
-	day_born = 3
-	month_born = 9
-	year_born = 1934
-	hard_mode = False
-	side_board = 14
-	sec_show_all_cards = 10
+
 
 
 Board.width = Board.height = side_board
@@ -198,7 +200,7 @@ def updateGamePostMove():
 			played_today = games_today()
 			save_record_time()
 			msg = f"""
-			Nonno Pippo ha vinto una partita a memory! 🎉\n
+			{player_name} ha vinto una partita a memory! 🎉\n
 			- Partite totali: {player.total_games()}
 			- Durata partita: {datetime.timedelta(milliseconds=time_elapsed_ms)}
 			- Numero di mosse: {board.turn_count}
@@ -486,7 +488,7 @@ while not exit:
 			delta = datetime.datetime.now() - boot_time
 			# format in duration
 			delta = datetime.timedelta(seconds=delta.seconds)
-			broadcast_to_whitelist(f"Nonno Pippo si è sfasteriato e ha chiuso il gioco dopo {delta} 😢")
+			broadcast_to_whitelist(f"{player_name} si è sfasteriato e ha chiuso il gioco dopo {delta} 😢")
 			exit = True
 		if event.type == pygame.KEYDOWN:
 			if event.key == pygame.K_ESCAPE:
