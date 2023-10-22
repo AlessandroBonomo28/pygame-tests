@@ -25,3 +25,7 @@ TOKEN_TELEGRAM = "xxxxxxx"
 WHITELIST_ID_TELEGRAM = "aaaa,bbbb,cccc,ddddd"
 ```
 The `WHITELIST_ID_TELEGRAM` is a string separated by commas. It contains the allowed *telegram IDs* that will receive updates about the game.
+
+![telegram](https://github.com/AlessandroBonomo28/pygame-tests/assets/75626033/8acdf45e-fb48-4b6b-bee7-27e0bc2f12cb)
+
+
