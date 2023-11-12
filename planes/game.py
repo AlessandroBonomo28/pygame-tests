@@ -128,10 +128,13 @@ def draw_bg():
 		canvas.blit(bg_images[i], (x, 0))
 		canvas.blit(bg_images[i], (bg_width+ x, 0))
 
+plane_name = None
 def load_random_plane():
+	global plane_name
 	path = "data/images/planes"
 	planes = os.listdir(path)
 	plane = random.choice(planes)
+	plane_name = plane.split(".")[0].replace("_", " ")
 	path = f"{path}/{plane}"
 	return pygame.image.load(path)
 	
@@ -156,6 +159,13 @@ while not exit:
 
 	#draw world
 	draw_bg()
+
+	if plane_name:
+		# write name of plane
+		text = default_font.render("Plane: "+ plane_name, True, (255,255,255))
+		#left corner top
+		text_rect = text.get_rect(center=(width//2, 50))
+		canvas.blit(text, text_rect)
 
 	for i in range(len(scrollers)):
 		scrollers[i] += 1+ i
