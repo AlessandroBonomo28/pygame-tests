@@ -1,6 +1,6 @@
 
 import pygame,datetime,json
-import logging, math,random
+import logging, math,random,os
 from tkinter import *
 from tkinter import messagebox
 from classes.logger import Logger
@@ -97,41 +97,59 @@ btn_start = MyButton("START", position_center=(width // 2, height // 2),
 					 bg_color=(0,0,0), text_color=(255,255,255), font=btn_font,border_stroke=2,
 					 border_color=(255,255,255))
 
-scroll = 0
 
+scrollers = [0,0,0,0]
+
+
+def pick_random_parallax_folder():
+	path = "data/images/parallax"
+	parallaxes = os.listdir(path)
+	return random.choice(parallaxes)
 
 bg_images = []
-for i in range(1, 5):
-	bg_image = pygame.image.load(f"data/images/parallax/{i}.png").convert_alpha()
-	bg_images.append(bg_image)
-bg_images = [pygame.transform.scale(i, (width, height)) for i in bg_images]
-bg_width = bg_images[0].get_width()
-# scale image to fit screen
+bg_width = 0
 
+def set_random_parallax():
+	global bg_images, bg_width
+	parallax_folder_name = pick_random_parallax_folder()
+	bg_images = []
+	for i in range(1, 5):
+		bg_image = pygame.image.load(f"data/images/parallax/{parallax_folder_name}/{i}.png").convert_alpha()
+		bg_images.append(bg_image)
+	bg_images = [pygame.transform.scale(i, (width, height)) for i in bg_images]
+	bg_width = bg_images[0].get_width()
+
+set_random_parallax()
 
 def draw_bg():
-	global scroll
+	global scrollers
+	for i in range(len(scrollers)):
+		x = - scrollers[i] 
+		canvas.blit(bg_images[i], (x, 0))
+		canvas.blit(bg_images[i], (bg_width+ x, 0))
+
+def load_random_plane():
+	path = "data/images/planes"
+	planes = os.listdir(path)
+	plane = random.choice(planes)
+	path = f"{path}/{plane}"
+	return pygame.image.load(path)
 	
-	x = 0
-	speed = 1
-	for i in bg_images:
-		xdraw = (x * bg_width) - scroll * speed
-		canvas.blit(i, (xdraw, 0))
-		speed += 0
+def scale_plane(plane):
+	scale = width // 6
+	plane = pygame.transform.scale(plane, (scale,scale))
+	plane = pygame.transform.rotate(plane, -90)
+	return plane
 
-		canvas.blit(i, (bg_width+ xdraw, 0))
+def pick_random_plane():
+	menu_plane = load_random_plane()
+	menu_plane = scale_plane(menu_plane)
+	return menu_plane
 
-	
-
-		
-plane_img = pygame.image.load("data/images/planes/GER_bf109.png")		
+menu_plane = pick_random_plane()
 px = 0
 py = 0
-scale = width // 6
-plane_img = pygame.transform.scale(plane_img, (scale,scale))
-# rotate 90
 
-plane_img = pygame.transform.rotate(plane_img, -90)
 while not exit:	
 
 	clock.tick(FPS)
@@ -139,20 +157,22 @@ while not exit:
 	#draw world
 	draw_bg()
 
-	scroll += 2
-	scroll %= bg_width
-	
+	for i in range(len(scrollers)):
+		scrollers[i] += 1+ i
+		scrollers[i] %= bg_width
 
 	#canvas.fill((0,0,0))
-	btn_start.draw(canvas)
+	
 	mouse_pos = pygame.mouse.get_pos()
-	sign = -1 if pygame.time.get_ticks() % 5000 < 2000 else 1
 	dy =   mouse_pos[1] - py
 	dx =   mouse_pos[0] - px
-	px += dx//65  -  ((dx/120) * math.sin(pygame.time.get_ticks()*0.003)) 
-	py += dy/65  +  ((dy/40) * math.cos(pygame.time.get_ticks()*0.006)) - sign*math.cos(pygame.time.get_ticks()*0.013)
+	px += dx//65*2  -  ((dx/120) * math.sin(pygame.time.get_ticks()*0.003)) 
+	py += dy/65  +  ((dy/40) * math.cos(pygame.time.get_ticks()*0.006)) - math.cos(pygame.time.get_ticks()*0.013)
 
-	canvas.blit(plane_img, (px, py))
+	
+	canvas.blit(menu_plane, (px - menu_plane.get_width()//2  , py- menu_plane.get_width()//2))
+
+	
 	for event in pygame.event.get():
 		# if resized window
 		if event.type == pygame.VIDEORESIZE:
@@ -170,6 +190,9 @@ while not exit:
 		if event.type == pygame.KEYDOWN:
 			if event.key == pygame.K_ESCAPE:
 				exit = True
+			if event.key == pygame.K_r:
+				menu_plane = pick_random_plane()
+				set_random_parallax()
 			if event.key == pygame.K_m:
 				audio_enabled = not audio_enabled
 				if audio_enabled:
