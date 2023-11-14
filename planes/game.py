@@ -55,7 +55,14 @@ start_game = pygame.mixer.Sound("data/sounds/start.mp3")
 wrong_sound = pygame.mixer.Sound("data/sounds/wrong.mp3")
 good_sound = pygame.mixer.Sound("data/sounds/good.mp3")
 boom_sound = pygame.mixer.Sound("data/sounds/boom.mp3")
+shoot_sound = pygame.mixer.Sound("data/sounds/shooting.mp3")
 
+# trim shootsound
+
+raw_array = shoot_sound.get_raw()
+raw_array = raw_array[0:120000]
+shoot_sound = pygame.mixer.Sound(buffer=raw_array)
+shoot_sound.set_volume(0.6)
 pygame.mixer.music.load('data/music/loop.mp3')
 pygame.mixer.music.play(-1)
 
@@ -81,6 +88,25 @@ pygame.display.set_icon(icon)
 pygame.display.set_caption("Planes 2023")
 logging.debug(f"{player_name} ha aperto il gioco")
 
+
+def load_tileset(filename, width, height):
+	image = pygame.image.load(filename).convert_alpha()
+	image_width, image_height = image.get_size()
+	tileset = []
+	for tile_x in range(0, image_width//width):
+		line = []
+		tileset.append(line)
+		for tile_y in range(0, image_height//height):
+			rect = (tile_x*width, tile_y*height, width, height)
+			 
+
+			line.append(image.subsurface(rect))
+	return tileset
+
+tileset = load_tileset("data/images/bullets/All_Fire_Bullet_Pixel_16x16_00.png", 16, 16)    
+bullet = tileset[6][10]
+
+
 exit = False
 
 
@@ -100,7 +126,7 @@ btn_start = MyButton("START", position_center=(width // 2, height // 2),
 
 
 scrollers = [0,0,0,0]
-min_speed = 2
+min_speed = 5
 parallax_speed = min_speed
 
 def pick_random_parallax_folder():
@@ -147,9 +173,9 @@ def scale_plane(plane):
 	return plane
 
 plane_name = None
-menu_plane = None
+plane = None
 def set_random_plane():
-	global plane_name,menu_plane
+	global plane_name,plane
 	path = "data/images/planes"
 	planes = os.listdir(path)
 	max_tries = 100
@@ -161,52 +187,24 @@ def set_random_plane():
 			break
 	plane_name = choice.split(".")[0].replace("_", " ")
 	path = f"{path}/{choice}"
-	menu_plane = pygame.image.load(path)
-	menu_plane = scale_plane(menu_plane)
+	plane = pygame.image.load(path)
+	plane = scale_plane(plane)
 
 
 set_random_plane()
 
 px = 0
 py = 0
-
+hit_count = 0
+distance = 0
+shoot = False
+bullet_life = 8
 while not exit:	
 
+
+
 	clock.tick(FPS)
-	draw_bg()
 	
-	if plane_name:
-		# write name of plane
-		text = default_font.render("Plane: "+ plane_name, True, (255,255,255))
-		#left corner top
-		text_rect = text.get_rect(center=(width//2, 50))
-		canvas.blit(text, text_rect)
-
-	for i in range(len(scrollers)):
-		scrollers[i] += (1+ i)*parallax_speed
-		scrollers[i] %= bg_width
-
-	#canvas.fill((0,0,0))
-	
-	mouse_pos = pygame.mouse.get_pos()
-	dy =   mouse_pos[1] - py
-	dx =   mouse_pos[0] - px
-	parallax_speed = min_speed + max( (dx/width)*5 , 0)
-	px += dx//65*2  -  ((dx/120) * math.sin(pygame.time.get_ticks()*0.01)) 
-	py += dy/65  +  ( math.cos(pygame.time.get_ticks()*0.002)) 
-
-	
-	h_speed = -2 * parallax_speed
-	particle_handler.add_particle( [px, py+ menu_plane.get_width()//6], [h_speed, 0], random.randint(4, 8))
-	particle_handler.add_particle( [px, py- menu_plane.get_width()//6], [h_speed, 0], random.randint(4, 8))
-	particle_handler.update()
-	particle_handler.draw(canvas)
-
-	canvas.blit(menu_plane, (px - menu_plane.get_width()//2  , py- menu_plane.get_width()//2))
-
-
-	
-
 	
 	for event in pygame.event.get():
 		# if resized window
@@ -234,15 +232,78 @@ while not exit:
 					pygame.mixer.music.unpause()
 				else:
 					pygame.mixer.music.pause()
+					#mouse hold down
 		if event.type == pygame.MOUSEBUTTONDOWN:
+			shoot = True
+			# play loop
+			shoot_sound.play(-1)
+
+		if event.type == pygame.MOUSEBUTTONUP:
+			shoot = False
+			shoot_sound.stop()
 			#get mouse position
-			pos = pygame.mouse.get_pos()
-			if btn_start.mouse_over(pos):
-				logging.debug("start")
-			break
-		
 			
+	
+	draw_bg()
+	
+
+	text = default_font.render(f"Travelled: {round(distance,1)} Km", True, (255,255,255))
+	text_rect = text.get_rect(center=(100, 50))
+	canvas.blit(text, text_rect)
+	if plane_name:
+		# write name of plane
+		text = default_font.render(f"Plane: {plane_name}", True, (255,255,255))
+		text_rect = text.get_rect(center=(width//2, 50))
+		canvas.blit(text, text_rect)
+
+	for i in range(len(scrollers)):
+		scrollers[i] += (1+ i**1.1)*parallax_speed
+		scrollers[i] %= bg_width
+
+	#canvas.fill((0,0,0))
+	
+	mouse_pos = pygame.mouse.get_pos()
+	dy =   mouse_pos[1] - py
+	dx =   mouse_pos[0] - px
+	
+	vertical_speed = 1/65
+	parallax_speed = min_speed + max( (dx/width)*5 , 0)
+	px += dx//65*2  -  ((dx/120) * math.sin(pygame.time.get_ticks()*0.01)) 
+	py += dy*vertical_speed  +  ( math.cos(pygame.time.get_ticks()*0.002)) 
+
+	
+	h_speed = -2 * parallax_speed
+	particle_handler.add_particle( [px, py+ plane.get_width()//6], [h_speed, 0], random.randint(4, 8))
+	particle_handler.add_particle( [px, py- plane.get_width()//6], [h_speed, 0], random.randint(4, 8))
+	
+	if pygame.time.get_ticks() % 100 < 50 and shoot:
+		
+		
+		particle_handler.add_particle( [px, py+ plane.get_width()//10], [-h_speed*2, 0], bullet_life,bullet)
+		particle_handler.add_particle( [px, py- plane.get_width()//10], [-h_speed*2, 0], bullet_life,bullet)
+	
+
+	target = (width,height//2)
+	radius_target = 256
+
+	particle_handler.update()
+	particle_handler.draw(canvas)
+
+	# collision check for particles with an image
+	for particle in particle_handler.particles:
+		if particle[3]:
+			x = particle[0][0]  - particle[3].get_height()//2
+			y = particle[0][1]- particle[3].get_height()//2
+			
+			if ((x-target[0])**2 + (y-target[1])**2 )**2 < radius_target**2:
+				particle_handler.particles.remove(particle)
+				logging.debug("hit "+str(hit_count))
+				hit_count += 1
 				
 
+	canvas.blit(plane, (px - plane.get_width()//2  , py- plane.get_width()//2))
 	pygame.display.update()
+	
+	#speed 509 km/h
+	distance += clock.get_time() * 509 / 1000 / 60 / 60	
 
