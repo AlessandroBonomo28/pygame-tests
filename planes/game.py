@@ -7,6 +7,7 @@ from classes.logger import Logger
 from classes.button import MyButton
 from classes.particles import ParticleHandler
 from classes.animation import Animation
+from classes.plane import Plane
 logging.basicConfig(level = logging.DEBUG)
 
 # force single instance
@@ -184,7 +185,7 @@ def scale_plane(plane):
 	return plane
 
 plane_name = None
-plane = None
+player = None
 
 
 def load_random_plane(current=None):
@@ -204,11 +205,15 @@ def load_random_plane(current=None):
 	return (plane, plane_name)
 
 def set_random_plane():
-	global plane_name,plane
-	plane, plane_name = load_random_plane(plane_name)
+	global plane_name,player
+	player, plane_name = load_random_plane(plane_name)
 
-enemy_plane, enemy_plane_name = load_random_plane()
+enemy_plane_sprite, enemy_plane_name = load_random_plane()
 enemy_plane_pos = [width - 100  , height//2 ]
+
+
+Plane.particle_handler = particle_handler
+enemy_plane = Plane(enemy_plane_pos,enemy_plane_sprite,enemy_plane_name)
 
 set_random_plane()
 
@@ -219,6 +224,9 @@ distance = 0
 shoot = False
 bullet_life = 8
 bullet_tag =1
+
+enemies = [enemy_plane]
+
 while not exit:	
 
 
@@ -246,7 +254,7 @@ while not exit:
 			if event.key == pygame.K_r:
 				set_random_plane()
 				set_random_parallax()
-				enemy_plane = load_random_plane(enemy_plane_name)[0]
+				enemy_plane.sprite = load_random_plane(enemy_plane_name)[0]
 			if event.key == pygame.K_m:
 				audio_enabled = not audio_enabled
 				if audio_enabled:
@@ -294,17 +302,15 @@ while not exit:
 
 	
 	h_speed = -2 * parallax_speed
-	particle_handler.add_particle( [px, py+ plane.get_width()//6], [h_speed, 0], random.randint(4, 8))
-	particle_handler.add_particle( [px, py- plane.get_width()//6], [h_speed, 0], random.randint(4, 8))
+	particle_handler.add_particle( [px, py+ player.get_width()//6], [h_speed, 0], random.randint(4, 8))
+	particle_handler.add_particle( [px, py- player.get_width()//6], [h_speed, 0], random.randint(4, 8))
 	
 	if pygame.time.get_ticks() % 100 < 50 and shoot:
-		particle_handler.add_particle( [px, py+ plane.get_width()//10], [-h_speed*2, 0], bullet_life,bullet,bullet_tag)
-		particle_handler.add_particle( [px, py- plane.get_width()//10], [-h_speed*2, 0], bullet_life,bullet,bullet_tag)
+		particle_handler.add_particle( [px, py+ player.get_width()//10], [-h_speed*2, 0], bullet_life,bullet,bullet_tag)
+		particle_handler.add_particle( [px, py- player.get_width()//10], [-h_speed*2, 0], bullet_life,bullet,bullet_tag)
 	
 
-	target = enemy_plane_pos
 	
-	radius_target = enemy_plane.get_width()//4
 	# draw circle collider
 	#pygame.draw.circle(canvas, (255, 255, 255), [int(target[0]), int(target[1])], int(radius_target), 1)
 
@@ -318,21 +324,28 @@ while not exit:
 			y = particle[0][1] 
 			if x > width or x < 0 or y > height or y < 0:
 				particle_handler.particles.remove(particle)
-			# draw line from xy to target
-			#pygame.draw.line(canvas, (255, 255, 255), [int(x), int(y)], [int(target[0]), int(target[1])], 1)
-			if ((x-target[0])**2 + (y-target[1])**2 ) < (radius_target + particle[3].get_width())**2:
-				particle_handler.particles.remove(particle)
-				#logging.debug("hit "+str(hit_count))
-				xoff =random.randint(50, 70)
-				yoff = random.randint(-20, 20)
-				size = random.randint(10, 30)
-				explosion = Animation(x+xoff,y+yoff,"data/images/explosion",3,size)
-				explosion_group.add(explosion)
-				hit_count += 1
-				damage2_sound.play()
-				
-	canvas.blit(enemy_plane, [ enemy_plane_pos[0] - enemy_plane.get_width()//2, enemy_plane_pos[1] - enemy_plane.get_width()//2])
-	canvas.blit(plane, (px - plane.get_width()//2  , py- plane.get_width()//2))
+				continue
+			for enemy in enemies:
+				radius_target = enemy.sprite.get_width()//4
+				target = enemy.pos
+				if ((x-target[0])**2 + (y-target[1])**2 ) < (radius_target + particle[3].get_width())**2:
+					particle_handler.particles.remove(particle)
+					#logging.debug("hit "+str(hit_count))
+					xoff =random.randint(50, 70)
+					yoff = random.randint(-20, 20)
+					size = random.randint(10, 30)
+					explosion = Animation(x+xoff,y+yoff,"data/images/explosion",3,size)
+					explosion_group.add(explosion)
+					hit_count += 1
+					enemy.damage(1)
+					damage2_sound.play()
+
+	for enemy in enemies:
+		enemy.velocity = [-2*parallax_speed,0]
+		enemy.update()
+		enemy.draw(canvas)
+	
+	canvas.blit(player, (px - player.get_width()//2  , py- player.get_width()//2))
 	
 	explosion_group.draw(canvas)
 	explosion_group.update()

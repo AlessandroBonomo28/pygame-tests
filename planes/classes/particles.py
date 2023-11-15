@@ -8,15 +8,17 @@ class ParticleHandler:
         self.particles = []
         pass
     # [[px, py], [vx,vy], timer])
-    def add_particle(self, loc, velocity, timer, image=None,tag=0):
-        self.particles.append([loc, velocity, timer,image,tag])
+    def add_particle(self, loc, velocity, timer, image=None,tag=0,gravity=True,gravity_dir=[0,0]):
+        self.particles.append([loc, velocity, timer,image,tag,gravity,gravity_dir])
 
     def update(self):
         for particle in self.particles:
             particle[0][0] += particle[1][0]
             particle[0][1] += particle[1][1]
             particle[2] -= 0.1
-            #particle[1][1] += 0.4 # gravity
+            if particle[5]: # if gravity is enabled
+                particle[1][1] += particle[6][1]
+                particle[1][0] += particle[6][0]
             if particle[2] <= 0:
                 self.particles.remove(particle)
     def draw(self,screen):
