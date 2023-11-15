@@ -6,6 +6,7 @@ from tkinter import messagebox
 from classes.logger import Logger
 from classes.button import MyButton
 from classes.particles import ParticleHandler
+from classes.animation import Animation
 logging.basicConfig(level = logging.DEBUG)
 
 # force single instance
@@ -56,6 +57,13 @@ wrong_sound = pygame.mixer.Sound("data/sounds/wrong.mp3")
 good_sound = pygame.mixer.Sound("data/sounds/good.mp3")
 boom_sound = pygame.mixer.Sound("data/sounds/boom.mp3")
 shoot_sound = pygame.mixer.Sound("data/sounds/shooting.mp3")
+damage1_sound = pygame.mixer.Sound("data/sounds/damage1.mp3")
+damage2_sound = pygame.mixer.Sound("data/sounds/damage2.wav")
+
+# trim damage
+raw_array = damage2_sound.get_raw()
+raw_array = raw_array[12000:30000]
+damage2_sound = pygame.mixer.Sound(buffer=raw_array)
 
 # trim shootsound
 
@@ -123,6 +131,9 @@ if now.day == day_born and now.month == month_born:
 btn_start = MyButton("START", position_center=(width // 2, height // 2), 
 					 bg_color=(0,0,0), text_color=(255,255,255), font=btn_font,border_stroke=2,
 					 border_color=(255,255,255))
+
+
+explosion_group = pygame.sprite.Group()
 
 
 scrollers = [0,0,0,0]
@@ -287,15 +298,13 @@ while not exit:
 	particle_handler.add_particle( [px, py- plane.get_width()//6], [h_speed, 0], random.randint(4, 8))
 	
 	if pygame.time.get_ticks() % 100 < 50 and shoot:
-		
-		
 		particle_handler.add_particle( [px, py+ plane.get_width()//10], [-h_speed*2, 0], bullet_life,bullet,bullet_tag)
 		particle_handler.add_particle( [px, py- plane.get_width()//10], [-h_speed*2, 0], bullet_life,bullet,bullet_tag)
 	
 
 	target = enemy_plane_pos
 	
-	radius_target = enemy_plane.get_width()//5
+	radius_target = enemy_plane.get_width()//4
 	# draw circle collider
 	#pygame.draw.circle(canvas, (255, 255, 255), [int(target[0]), int(target[1])], int(radius_target), 1)
 
@@ -314,10 +323,20 @@ while not exit:
 			if ((x-target[0])**2 + (y-target[1])**2 ) < (radius_target + particle[3].get_width())**2:
 				particle_handler.particles.remove(particle)
 				#logging.debug("hit "+str(hit_count))
+				xoff =random.randint(50, 70)
+				yoff = random.randint(-20, 20)
+				size = random.randint(10, 30)
+				explosion = Animation(x+xoff,y+yoff,"data/images/explosion",3,size)
+				explosion_group.add(explosion)
 				hit_count += 1
+				damage2_sound.play()
 				
 	canvas.blit(enemy_plane, [ enemy_plane_pos[0] - enemy_plane.get_width()//2, enemy_plane_pos[1] - enemy_plane.get_width()//2])
 	canvas.blit(plane, (px - plane.get_width()//2  , py- plane.get_width()//2))
+	
+	explosion_group.draw(canvas)
+	explosion_group.update()
+	
 	pygame.display.update()
 	
 	#speed 509 km/h
