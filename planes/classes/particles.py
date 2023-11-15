@@ -8,8 +8,8 @@ class ParticleHandler:
         self.particles = []
         pass
     # [[px, py], [vx,vy], timer])
-    def add_particle(self, loc, velocity, timer, image=None):
-        self.particles.append([loc, velocity, timer,image])
+    def add_particle(self, loc, velocity, timer, image=None,tag=0):
+        self.particles.append([loc, velocity, timer,image,tag])
 
     def update(self):
         for particle in self.particles:

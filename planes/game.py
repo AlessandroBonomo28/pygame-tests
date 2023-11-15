@@ -174,8 +174,9 @@ def scale_plane(plane):
 
 plane_name = None
 plane = None
-def set_random_plane():
-	global plane_name,plane
+
+
+def load_random_plane(current=None):
 	path = "data/images/planes"
 	planes = os.listdir(path)
 	max_tries = 100
@@ -183,13 +184,20 @@ def set_random_plane():
 	while try_count<max_tries:
 		try_count += 1
 		choice = random.choice(planes)
-		if choice != plane_name:
+		if choice != current:
 			break
 	plane_name = choice.split(".")[0].replace("_", " ")
 	path = f"{path}/{choice}"
 	plane = pygame.image.load(path)
 	plane = scale_plane(plane)
+	return (plane, plane_name)
 
+def set_random_plane():
+	global plane_name,plane
+	plane, plane_name = load_random_plane(plane_name)
+
+enemy_plane, enemy_plane_name = load_random_plane()
+enemy_plane_pos = [width - 100  , height//2 ]
 
 set_random_plane()
 
@@ -199,6 +207,7 @@ hit_count = 0
 distance = 0
 shoot = False
 bullet_life = 8
+bullet_tag =1
 while not exit:	
 
 
@@ -226,6 +235,7 @@ while not exit:
 			if event.key == pygame.K_r:
 				set_random_plane()
 				set_random_parallax()
+				enemy_plane = load_random_plane(enemy_plane_name)[0]
 			if event.key == pygame.K_m:
 				audio_enabled = not audio_enabled
 				if audio_enabled:
@@ -247,8 +257,8 @@ while not exit:
 	draw_bg()
 	
 
-	text = default_font.render(f"Travelled: {round(distance,1)} Km", True, (255,255,255))
-	text_rect = text.get_rect(center=(100, 50))
+	text = default_font.render(f"Travelled: {round(distance,1)} km, Hits: {hit_count}", True, (255,255,255))
+	text_rect = text.get_rect(center=(150, 50))
 	canvas.blit(text, text_rect)
 	if plane_name:
 		# write name of plane
@@ -266,7 +276,7 @@ while not exit:
 	dy =   mouse_pos[1] - py
 	dx =   mouse_pos[0] - px
 	
-	vertical_speed = 1/65
+	vertical_speed = 1/65*3
 	parallax_speed = min_speed + max( (dx/width)*5 , 0)
 	px += dx//65*2  -  ((dx/120) * math.sin(pygame.time.get_ticks()*0.01)) 
 	py += dy*vertical_speed  +  ( math.cos(pygame.time.get_ticks()*0.002)) 
@@ -279,28 +289,34 @@ while not exit:
 	if pygame.time.get_ticks() % 100 < 50 and shoot:
 		
 		
-		particle_handler.add_particle( [px, py+ plane.get_width()//10], [-h_speed*2, 0], bullet_life,bullet)
-		particle_handler.add_particle( [px, py- plane.get_width()//10], [-h_speed*2, 0], bullet_life,bullet)
+		particle_handler.add_particle( [px, py+ plane.get_width()//10], [-h_speed*2, 0], bullet_life,bullet,bullet_tag)
+		particle_handler.add_particle( [px, py- plane.get_width()//10], [-h_speed*2, 0], bullet_life,bullet,bullet_tag)
 	
 
-	target = (width,height//2)
-	radius_target = 256
+	target = enemy_plane_pos
+	
+	radius_target = enemy_plane.get_width()//5
+	# draw circle collider
+	#pygame.draw.circle(canvas, (255, 255, 255), [int(target[0]), int(target[1])], int(radius_target), 1)
 
 	particle_handler.update()
 	particle_handler.draw(canvas)
 
 	# collision check for particles with an image
 	for particle in particle_handler.particles:
-		if particle[3]:
-			x = particle[0][0]  - particle[3].get_height()//2
-			y = particle[0][1]- particle[3].get_height()//2
-			
-			if ((x-target[0])**2 + (y-target[1])**2 )**2 < radius_target**2:
+		if particle[4] == bullet_tag:
+			x = particle[0][0] 
+			y = particle[0][1] 
+			if x > width or x < 0 or y > height or y < 0:
 				particle_handler.particles.remove(particle)
-				logging.debug("hit "+str(hit_count))
+			# draw line from xy to target
+			#pygame.draw.line(canvas, (255, 255, 255), [int(x), int(y)], [int(target[0]), int(target[1])], 1)
+			if ((x-target[0])**2 + (y-target[1])**2 ) < (radius_target + particle[3].get_width())**2:
+				particle_handler.particles.remove(particle)
+				#logging.debug("hit "+str(hit_count))
 				hit_count += 1
 				
-
+	canvas.blit(enemy_plane, [ enemy_plane_pos[0] - enemy_plane.get_width()//2, enemy_plane_pos[1] - enemy_plane.get_width()//2])
 	canvas.blit(plane, (px - plane.get_width()//2  , py- plane.get_width()//2))
 	pygame.display.update()
 	
