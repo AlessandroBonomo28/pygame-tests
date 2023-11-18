@@ -134,7 +134,7 @@ btn_start = MyButton("START", position_center=(width // 2, height // 2),
 					 border_color=(255,255,255))
 
 
-explosion_group = pygame.sprite.Group()
+
 
 
 scrollers = [0,0,0,0]
@@ -211,10 +211,14 @@ def set_random_plane():
 enemy_plane_sprite, enemy_plane_name = load_random_plane()
 enemy_plane_pos = [width - 100  , height//2 ]
 
+explosion_group = pygame.sprite.Group()
 
-Plane.particle_handler = particle_handler
+Plane.set_particle_handler( particle_handler)
+Plane.set_explosion_group(explosion_group)
+Plane.set_explosion_sound(boom_sound)
+
 enemy_plane = Plane(enemy_plane_pos,enemy_plane_sprite,enemy_plane_name)
-
+enemy_planes_vertical_velocity = 5
 set_random_plane()
 
 px = 0
@@ -326,6 +330,8 @@ while not exit:
 				particle_handler.particles.remove(particle)
 				continue
 			for enemy in enemies:
+				if enemy.is_dead:
+					continue
 				radius_target = enemy.sprite.get_width()//4
 				target = enemy.pos
 				if ((x-target[0])**2 + (y-target[1])**2 ) < (radius_target + particle[3].get_width())**2:
@@ -341,7 +347,9 @@ while not exit:
 					damage2_sound.play()
 
 	for enemy in enemies:
-		enemy.velocity = [-2*parallax_speed,0]
+		if enemy.is_dead:
+			enemies.remove(enemy)
+		enemy.velocity = [-2*parallax_speed,enemy_planes_vertical_velocity]
 		enemy.update()
 		enemy.draw(canvas)
 	
@@ -349,7 +357,6 @@ while not exit:
 	
 	explosion_group.draw(canvas)
 	explosion_group.update()
-	
 	pygame.display.update()
 	
 	#speed 509 km/h
