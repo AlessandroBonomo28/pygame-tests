@@ -204,34 +204,69 @@ def load_random_plane(current=None):
 	plane = scale_plane(plane)
 	return (plane, plane_name)
 
-def set_random_plane():
+def set_random_player_plane():
 	global plane_name,player
 	player, plane_name = load_random_plane(plane_name)
 
-enemy_plane_sprite, enemy_plane_name = load_random_plane()
-enemy_plane_pos = [width - 100  , height//2 ]
-
 explosion_group = pygame.sprite.Group()
 
+enemies = []
 Plane.particle_handler = particle_handler
 Plane.explosion_sprite_group = explosion_group
 Plane.damage_sound = boom_sound
 Plane.final_explosion_sound = boom_sound
 Plane.font  =pygame.font.SysFont("Comic Sans MS", 20)
-enemy_health = 300
-enemy_plane = Plane(enemy_plane_pos,enemy_plane_sprite,enemy_plane_name,enemy_health)
-enemy_planes_vertical_velocity = 5
-set_random_plane()
+
+
+def add_enemy():
+	global enemies
+	max_try = 100
+	tries = 0
+	while tries < max_try:
+		tries += 1
+		enemy_plane_pos = [random.randint(width//2 + 100, width -50), random.randint(100, height-100)]
+		min_dist = 1000
+		for enemy in enemies:
+			dx = abs(enemy_plane_pos[0] - enemy.pos[0])
+			if dx < min_dist:
+				min_dist = dx
+		if min_dist > 200:
+			break
+	
+	enemy_plane_sprite, enemy_plane_name = load_random_plane()
+	if Plane.is_heavy(enemy_plane_name):
+		enemy_health = 500
+		vertical_speed = 2
+		damage_stages = 3
+	elif Plane.is_light(enemy_plane_name):
+		enemy_health = 80
+		vertical_speed = 6
+		damage_stages = 1
+	else:
+		enemy_health = 160
+		vertical_speed = 4
+		damage_stages = 2
+	enemy_plane = Plane(enemy_plane_pos,enemy_plane_sprite,enemy_plane_name,enemy_health,[0,vertical_speed],damage_stages=damage_stages)
+	enemies.append(enemy_plane)
+
+
+
+
+for i in range(2):
+	add_enemy()
+
+set_random_player_plane()
 
 px = 0
 py = 0
+kills = 0
 hit_count = 0
 distance = 0
 shoot = False
 bullet_life = 8
 bullet_tag =1
 
-enemies = [enemy_plane]
+
 
 while not exit:	
 
@@ -258,9 +293,8 @@ while not exit:
 			if event.key == pygame.K_ESCAPE:
 				exit = True
 			if event.key == pygame.K_r:
-				set_random_plane()
+				set_random_player_plane()
 				set_random_parallax()
-				enemy_plane.sprite,enemy_plane.name = load_random_plane(enemy_plane.name)
 			if event.key == pygame.K_m:
 				audio_enabled = not audio_enabled
 				if audio_enabled:
@@ -282,7 +316,7 @@ while not exit:
 	draw_bg()
 	
 
-	text = default_font.render(f"Travelled: {round(distance,1)} km, Hits: {hit_count}", True, (255,255,255))
+	text = default_font.render(f"Travelled: {round(distance,1)} km, Kills: {kills}", True, (255,255,255))
 	text_rect = text.get_rect(center=(150, 50))
 	canvas.blit(text, text_rect)
 	if plane_name:
@@ -344,7 +378,10 @@ while not exit:
 				radius_target = enemy.sprite.get_width()//4
 				target = enemy.pos
 				if ((x-target[0])**2 + (y-target[1])**2 ) < (radius_target + particle[3].get_width())**2:
-					particle_handler.particles.remove(particle)
+					try:
+						particle_handler.particles.remove(particle)
+					except:
+						pass
 					#logging.debug("hit "+str(hit_count))
 					xoff =random.randint(50, 70)
 					yoff = random.randint(-20, 20)
@@ -353,12 +390,15 @@ while not exit:
 					explosion_group.add(explosion)
 					hit_count += 1
 					enemy.damage(1)
+					if enemy.is_dead:
+						add_enemy()
+						kills += 1
 					damage2_sound.play()
 
 	for enemy in enemies:
 		if enemy.is_dead:
 			enemies.remove(enemy)
-		enemy.velocity = [-2*parallax_speed,enemy_planes_vertical_velocity]
+		enemy.velocity = [-2*parallax_speed,enemy.velocity[1]]
 		enemy.update()
 		enemy.draw(canvas)
 	
