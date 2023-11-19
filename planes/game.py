@@ -260,7 +260,7 @@ while not exit:
 			if event.key == pygame.K_r:
 				set_random_plane()
 				set_random_parallax()
-				enemy_plane.sprite,enemy_plane_name = load_random_plane(enemy_plane_name)
+				enemy_plane.sprite,enemy_plane.name = load_random_plane(enemy_plane.name)
 			if event.key == pygame.K_m:
 				audio_enabled = not audio_enabled
 				if audio_enabled:
