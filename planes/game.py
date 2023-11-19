@@ -304,8 +304,15 @@ while not exit:
 	px += dx//65*2  -  ((dx/120) * math.sin(pygame.time.get_ticks()*0.01)) 
 	py += dy*vertical_speed  +  ( math.cos(pygame.time.get_ticks()*0.002)) 
 
-	
 	h_speed = -2 * parallax_speed
+
+	v_smoke_speed = -0.5
+	h_smoke_speed = -0.5
+	smoke_pos = [px-20,py]
+	particle_handler.add_particle( smoke_pos, [h_smoke_speed, v_smoke_speed], random.randint(6, 9),color=(50,50,50))
+	particle_handler.add_particle( smoke_pos,[h_smoke_speed, v_smoke_speed], random.randint(3, 7),color=(255,100,0))
+	particle_handler.add_particle( smoke_pos, [h_smoke_speed, v_smoke_speed], random.randint(2, 6),color=(255,200,0))
+
 	particle_handler.add_particle( [px, py+ player.get_width()//6], [h_speed, 0], random.randint(4, 8))
 	particle_handler.add_particle( [px, py- player.get_width()//6], [h_speed, 0], random.randint(4, 8))
 	
