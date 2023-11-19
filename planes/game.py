@@ -52,7 +52,7 @@ pygame.mixer.init()
 
 win_sound = pygame.mixer.Sound("data/sounds/win.mp3")
 lose_sound = pygame.mixer.Sound("data/sounds/lose.mp3")
-boom_sound = pygame.mixer.Sound("data/sounds/boom.mp3")
+big_boom_sound = pygame.mixer.Sound("data/sounds/big_boom.mp3")
 start_game = pygame.mixer.Sound("data/sounds/start.mp3")
 wrong_sound = pygame.mixer.Sound("data/sounds/wrong.mp3")
 good_sound = pygame.mixer.Sound("data/sounds/good.mp3")
@@ -213,11 +213,13 @@ enemy_plane_pos = [width - 100  , height//2 ]
 
 explosion_group = pygame.sprite.Group()
 
-Plane.set_particle_handler( particle_handler)
-Plane.set_explosion_group(explosion_group)
-Plane.set_explosion_sound(boom_sound)
-
-enemy_plane = Plane(enemy_plane_pos,enemy_plane_sprite,enemy_plane_name)
+Plane.particle_handler = particle_handler
+Plane.explosion_sprite_group = explosion_group
+Plane.damage_sound = boom_sound
+Plane.final_explosion_sound = boom_sound
+Plane.font  =pygame.font.SysFont("Comic Sans MS", 20)
+enemy_health = 300
+enemy_plane = Plane(enemy_plane_pos,enemy_plane_sprite,enemy_plane_name,enemy_health)
 enemy_planes_vertical_velocity = 5
 set_random_plane()
 
@@ -258,7 +260,7 @@ while not exit:
 			if event.key == pygame.K_r:
 				set_random_plane()
 				set_random_parallax()
-				enemy_plane.sprite = load_random_plane(enemy_plane_name)[0]
+				enemy_plane.sprite,enemy_plane_name = load_random_plane(enemy_plane_name)
 			if event.key == pygame.K_m:
 				audio_enabled = not audio_enabled
 				if audio_enabled:
@@ -308,7 +310,7 @@ while not exit:
 
 	v_smoke_speed = -0.5
 	h_smoke_speed = -0.5
-	smoke_pos = [px-20,py]
+	smoke_pos = [px,py]
 	particle_handler.add_particle( smoke_pos, [h_smoke_speed, v_smoke_speed], random.randint(6, 9),color=(50,50,50))
 	particle_handler.add_particle( smoke_pos,[h_smoke_speed, v_smoke_speed], random.randint(3, 7),color=(255,100,0))
 	particle_handler.add_particle( smoke_pos, [h_smoke_speed, v_smoke_speed], random.randint(2, 6),color=(255,200,0))

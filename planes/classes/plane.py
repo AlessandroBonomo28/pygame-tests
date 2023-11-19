@@ -5,20 +5,13 @@ class Plane:
     
     particle_handler : ParticleHandler = None
     explosion_sprite_group : pygame.sprite.Group = None
-    explosion_sound : pygame.mixer.Sound = None
-    @staticmethod
-    def set_particle_handler(handler):
-        Plane.particle_handler = handler
-
-    @staticmethod
-    def set_explosion_group(group):
-        Plane.explosion_sprite_group = group
-
-    @staticmethod
-    def set_explosion_sound(sound):
-        Plane.explosion_sound = sound
+    damage_sound : pygame.mixer.Sound = None
+    final_explosion_sound : pygame.mixer.Sound = None
+    font = None
     
     def __init__(self,pos,sprite,name,health=100,velocity=[0,0],erraticness=0.015):
+        self.max_health = health
+        self.disturb_timer = 0
         self.sign = 1
         self.sprite = sprite
         self.velocity = velocity
@@ -47,8 +40,18 @@ class Plane:
         
         self.pos[1] +=  math.sin(pygame.time.get_ticks()*self.erraticness)*(self.velocity[1]*0.6)
 
+        if self.disturb_timer > 0:
+            self.pos[0] += math.cos(pygame.time.get_ticks()*self.erraticness*3)*(self.velocity[0]/2)
+            self.disturb_timer -= 0.1
+
     def damage(self,amount):
+        if self.is_dead:
+            return
+        level = self.get_damage_level()
         self.health -= amount
+        new_level = self.get_damage_level()
+        if level != new_level and new_level <= 2:
+            self.__apply_level_damage()
         if self.health <= 0:
             self.die()
 
@@ -59,15 +62,49 @@ class Plane:
         self.health = 0
         # explosion animation
         Plane.explosion_sprite_group.add(Animation(self.pos[0],self.pos[1],"data/images/explosion",3,200))
-        Plane.explosion_sound.play()
-
+        pygame.mixer.Sound.play(Plane.final_explosion_sound)
+    
+    
+    def draw_plane_name(self,screen):
+        text = Plane.font.render(self.name, True, (255,0,0))
+        screen.blit(text, [ self.pos[0] - text.get_width() -20, self.pos[1] - text.get_width()])
+    
     def draw(self,screen):
         if self.is_dead:
             return
+        
         screen.blit(self.sprite, [ self.pos[0] - self.sprite.get_width()//2, self.pos[1] - self.sprite.get_width()//2])
         px = self.pos[0]
         py = self.pos[1]
         vel = [ self.velocity[0],0]
         Plane.particle_handler.add_particle( [px, py+ self.sprite.get_width()//6], vel, random.randint(4, 8))
         Plane.particle_handler.add_particle( [px, py- self.sprite.get_width()//6], vel, random.randint(4, 8))
-        
+        self.__draw_smoke()
+        self.draw_plane_name(screen)
+    
+    
+
+    v_smoke_speed = -0.5
+    h_smoke_speed = -0.5
+    offsets = [
+        [-50,0],
+        [0,30],
+        [0,-30],
+    ]
+    def get_damage_level(self):
+        return int((self.health/self.max_health)*4)
+    
+    def __apply_level_damage(self):
+        index = min(self.get_damage_level(),2)
+        explosion_pos = [self.pos[0] + Plane.offsets[index][0], self.pos[1]+ Plane.offsets[index][1]]
+         # explosion animation
+        Plane.explosion_sprite_group.add(Animation(explosion_pos[0],explosion_pos[1],"data/images/explosion",3,120))
+        pygame.mixer.Sound.play(Plane.damage_sound)
+        self.disturb_timer = 2
+
+    def __draw_smoke(self):
+        for i in range(3-self.get_damage_level()):
+            smoke_pos = [self.pos[0] + Plane.offsets[i][0], self.pos[1]+ Plane.offsets[i][1]]
+            Plane.particle_handler.add_particle( smoke_pos, [Plane.h_smoke_speed, Plane.v_smoke_speed], random.randint(6, 9),color=(50,50,50))
+            Plane.particle_handler.add_particle( smoke_pos,[Plane.h_smoke_speed, Plane.v_smoke_speed], random.randint(3, 7),color=(255,100,0))
+            Plane.particle_handler.add_particle( smoke_pos, [Plane.h_smoke_speed, Plane.v_smoke_speed], random.randint(2, 6),color=(255,200,0))
